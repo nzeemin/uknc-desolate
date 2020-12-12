@@ -1,0 +1,383 @@
+	.TITLE	DESOLA
+	.MCALL	.EXIT
+
+.MACRO	PUSH	RR
+	MOV	RR,-(SP)
+.ENDM
+.MACRO	POP	RR
+	MOV	(SP)+,RR
+.ENDM
+
+
+;------------------------------------------------------------------------------
+
+	.ASECT
+	.=001000
+START::
+	CLR	@#177560
+
+	MOV	#GAMESC, R1	; Строка для подготовки игрового экрана
+	CALL	PRINT
+	CALL	PAUSE		; подождём пока очистится экран
+; Точки по углам игрового экрана
+	MOV	#176640, R1		; Адрес порта адреса косвенной записи УКНЦ
+	MOV	#176642, R2		; Адрес в ВОЗУ УКНЦ
+	MOV	#112367, (R1)		;   пишем косвенный адрес
+	MOV	#100000, (R2)		;   пишем в ВОЗУ УКНЦ
+	MOV	#112420, (R1)		;   пишем косвенный адрес
+	MOV	#000400, (R2)		;   пишем в ВОЗУ УКНЦ
+	MOV	#136507, (R1)		;   пишем косвенный адрес
+	MOV	#100000, (R2)		;   пишем в ВОЗУ УКНЦ
+	MOV	#136540, (R1)		;   пишем косвенный адрес
+	MOV	#000400, (R2)		;   пишем в ВОЗУ УКНЦ
+;TODO: Раскодировать титульный экран и скопировать надпись DESOLATE
+
+	MOV	#0, R3
+	MOV	#<128.*400+24.>, R2
+	CALL	CLBLK
+
+	MOV	#3, @#L86D7
+	MOV	#65., R0
+	CALL	DRCHAR
+;	MOV	#32., R0
+;	CALL	DRCHAR
+;	MOV	#66., R0
+;	CALL	DRCHAR
+
+	MOVB	#0, @#L86D7
+	MOVB	#14., @#L86D8
+	MOV	#STR, R3
+	CALL	DRSTR
+
+	CALL	SHOWSC
+
+;	HALT
+
+	CALL	WTKEY
+
+FINISH:
+	MOV	#EXITSC, R1	; Строка очистки экрана перед выходом
+	CALL	PRINT
+	.EXIT
+
+STR:
+	.ASCIZ	/abcdefghijklmnopqrstuvw/<25><25>
+
+
+GAMESC:	; Строка подготовки игрового экрана
+	.BYTE	33,246,62	; Формат экрана 40x24
+	.BYTE	33,240,63	; Цвет символа
+	.BYTE	33,241,60	; Цвет знакоместа 0
+	.BYTE	33,242,60	; Цвет фона 0
+	.BYTE	14		; Clear screen
+	.BYTE	0
+EXITSC:	; Строка очистки экрана перед выходом
+	.BYTE	33,246,061	; Формат экрана 80x24
+	.BYTE	33,240,67	; Цвет символа
+	.BYTE	33,241,61	; Цвет знакоместа 1
+	.BYTE	33,242,61	; Цвет фона 1
+	.BYTE	14		; Очистить экран
+	.BYTE	0
+
+	.EVEN
+
+; Подпрограмма: Печать строки: R1 = адрес строки, строка завершается 0; портит R0
+PRINT:
+10$:	MOVB	(R1)+, R0	; Конец строки?
+	BEQ	RETN		; да => выходим
+20$:	TSTB	@#177564	; Источник канала 0 готов?
+	BPL	20$		; нет => ждём
+	MOV	R0, @#177566	; передаём символ в канал 0
+	BR	10$
+
+;Подпрограмма: пауза после очистки экрана чтобы ПП закончил работу
+PAUSE:	; Pause to let PPU finish the previous commands
+	MOV	#177777, R5
+1$:	NOP
+	SOB	R5, 1$
+RETN:	RETURN
+
+; Подпрограмма: Ожидание символа с клавиатуры: R0 = полученный символ
+WTKEY:	TSTB	@#177560
+	BPL	WTKEY
+	CLR	R0
+	MOVB	@#177562, R0	; символ в R0
+	CMPB	R0, #33
+	BNE	RETN
+ESCKEY:	TSTB	@#177560
+	BPL	ESCKEY
+	MOVB	@#177562, R0	; символ в R0
+	BIS	#15400,R0	; #33 в верхний байт
+	RETURN
+; Подпрограмма: Получение символа с клавиатуры: флаг Z=0 = есть символ, R0 = полученный символ
+GETKEY:	TSTB	@#177560	; есть символ?
+	BPL	10$		; нет символа => выходим
+	MOVB	@#177562, R0	; символ в R0
+	CMPB	R0, #33		; Esc ?
+	BEQ	ESCKEY		
+	RETURN
+10$:	CLR	R0		; возвращаем пустой код клавиши
+	RETURN
+
+;------------------------------------------------------------------------------
+
+; Get shadow screen address using penCol in L86D7
+;   R0 = row 0..137
+;   (L86D7) = penCol 0..191
+; Returns R3 = address
+GSADDR:
+	ADD	R0, R0		; now R0 = row * 2
+	MOV	R0, R3
+	ADD	R3, R3		; now R3 = row * 4
+	ADD	R0, R3		; now R3 = row * 6
+	ADD	R3, R3		; now R3 = row * 12
+	ADD	R3, R3		; now R3 = row * 24
+	ADD	#SHADOW, R3
+	MOVB	@#L86D7, R0	; get penCol
+	BIC	#177400, R0
+	ASR	R0	
+	ASR	R0	
+	ASR	R0		; now A = 8px column
+	ADD	R0, R3		; now R3 = line address + column
+	RETURN
+
+; Draw string  on shadow screen using FONTPR font
+;   R3 = string addr
+DRSTR:
+	MOVB	(R3)+, R0
+	BNE	DRSTR1
+	RETURN
+DRSTR1:
+	CALL	DRCHAR
+	BR	DRSTR
+
+; Draw character on the screen using FONTPR font
+;   R0 = character to show: $00-$1F space with R0 width; $20 space
+; Saves: R1, R3
+DRCHAR:
+	PUSH	R3		;   push hl
+	PUSH	R1		;   push bc
+	CMPB	R0, #040	;   cp $20        ; $00-$1F ?
+	BLO	DRCH00		;   jr c,DrawChar_00  ; yes => set char width and process like space char
+	BNE	DRCHR0		;   jr nz,DrawChar_0  ; not space char => jump
+	MOV	#003, R0	;   ld a,$03      ; space char gap size
+DRCH00:				; DrawChar_00:
+	MOVB	R0, @#DRCHRW	;   ld (DrawChar_width),a
+	BR	DRCHRF		;   jp DrawChar_fin
+DRCHR0:				; DrawChar_0:
+	CMPB	R0, #047	;   cp $27        ; char less than apostroph?
+	BHIS	DRCHR1		;   jr nc,DrawChar_1
+	ADD	#072, R0	;   add a,$3A     ; for '!', quotes, '#' '$' '%' '&'
+	BR	DRCHR2		;   jr DrawChar_2
+DRCHR1:				; DrawChar_1:
+	CMPB	R0, #052	;   cp $2A        ; char less than '*'?
+	BHIS	DRCHR2		;   jr nc,DrawChar_2
+	ADD	#025, R0	;   add a,$15     ; for apostroph, '(' ')' chars
+DRCHR2:	SUB	#054, R0	;   sub $2C       ; font starts from ','
+	MOV	R0, R2 		;   ld e,a / ld l,a  ; calculating the symbol address
+	ADD	R2, R2		;   add hl,hl     ; now hl = a * 2
+	ADD	R2, R2		;   add hl,hl     ; now hl = a * 4
+	ADD	R0, R2		;   add hl,de     ; now hl = a * 5
+	ADD	R2, R2		;   add hl,hl     ; now hl = a * 10
+	ADD	R0, R2		;   add hl,de     ; now hl = a * 11
+	ADD	#FONTPR, R2	;   ld de,FontProto / add hl,de / ex de,hl      ; now de=symbol addr
+	MOVB	@#L86D8, R0	;   ld a,(L86D8)  ; get penRow
+	MOVB	R0, @#DRCHRO	;   ld (DrawChar_row),a
+	MOVB	(R2)+, R0	;   ld a,(de) / inc de     ; get flag/width byte
+	BIT	#200, R0	;   bit 7,a       ; lowered symbol?
+	BEQ	DRCHR3		;   jr z,DrawChar_3
+	INCB	@#DRCHRO	;   ld hl,DrawChar_row / inc (hl)      ; start on the next line
+DRCHR3:				; DrawChar_3:
+	BIC	#177760, R0	;   and $0f       ; keep width 1..8
+	ADD	#002, R0	;   add a,$02     ; gap 2px after the symbol
+	MOVB	R0, @#DRCHRW	;   ld (DrawChar_width),a
+	MOVB	@#DRCHRO, R0	;   ld a,(DrawChar_row)
+	CALL	GSADDR		;   call GetScreenAddr
+	PUSH	R3		;   push hl       ; store addr on the screen
+	PUSH	R2		;   push de       ; store symbol data addr
+	MOVB	@#L86D7, R0	;   ld a,(L86D7)  ; get penCol
+	BIC	#177770, R0	;   and $07       ; shift 0..7
+	INC	R0		;   inc a
+	MOV	R0, R4		;   ld c,a
+	MOV	#10., R1	;   ld b,10       ; 10 lines
+DRCHR4:	PUSH	R4		; DrawChar_4:     ; loop by lines
+	PUSH	R1		;   push bc       ; save counter
+	MOVB	(R2)+, R0	;   ld a,(de) / inc de
+DRCHR5:				; DrawChar_5:     ; loop for shift
+	DEC	R4		;   dec c
+	BEQ	DRCHR6		;   jr z, DrawChar_6
+	ASL	R0		;   srl a         ; shift right
+	BR	DRCHR5		;   jr DrawChar_5
+DRCHR6:				; DrawChar_6:
+	BISB	R0, (R3)	;   or (hl) / ld (hl),a     ; put on the screen
+	MOVB	@#DRCHRO, R0	;   ld a,(DrawChar_row)
+	INC	R0		;   inc a
+	MOVB	R0, @#DRCHRO	;   ld (DrawChar_row),a
+	CALL	GSADDR		;   call GetScreenAddr
+	POP	R1		;   pop bc        ; restore counter and shift
+	POP	R4
+	SOB	R1, DRCHR4	;   djnz DrawChar_4
+	POP	R2		;   pop de        ; restore symbol data addr
+	POP	R3		;   pop hl        ; restore addr on the screen
+	MOVB	@#L86D7, R0	;   ld a,(L86D7)  ; get penCol
+	BIC	#177770, R0	;   and $7        ; shift 0..7
+	MOV	R0, R1		;   ld b,a
+	MOVB	@#DRCHRW, R0	;   ld a,(DrawChar_width)
+	ADD	R1, R0		;   add a,b
+	CMPB	R0, #010	;   cp $08        ; shift + width <= 8 ?
+	BLO	DRCHRF		;   jr c,DrawChar_fin	; yes => no need for 2nd pass
+; Second pass
+	MOVB	@#L86D7, R0	;   ld a,(L86D7)  ; get penCol
+	BIC	#177770, R0	;   and $07       ; shift 1..7
+	SUB	#8., R0		;   sub $08
+	COM	R0		;   neg           ; a = 8 - shift; result is 1..7
+	INC	R0		;   inc a
+	INC	R0
+	MOV	R0, R4		;   ld c,a
+	MOVB	@#DRCHRO, R0	;   ld a,(DrawChar_row)
+	SUB	#10., R0	;   add a,-10
+	MOVB	R0, @#DRCHRO	;   ld (DrawChar_row),a
+	INC	R3		;   inc hl
+	MOV	#10.,R1		;   ld b,10       ; 10 lines
+DRCHR8:	PUSH	R4		; DrawChar_8:     ; loop by lines
+	PUSH	R1		;   push bc       ; save counter
+	MOVB	(R2)+, R0	;   ld a,(de) / inc de
+DRCHR9:				; DrawChar_9:     ; loop for shift
+	DEC	R4		;   dec c
+	BEQ	DRCHRA		;   jr z, DrawChar_A
+	ASR	R0		;   sla a         ; shift left
+	BR	DRCHR9		;   jr DrawChar_9
+DRCHRA:				; DrawChar_A:
+	BISB	R0, (R3)	;   or (hl) / ld (hl),a     ; put on the screen
+	MOVB	@#DRCHRO, R0	;   ld a,(DrawChar_row)
+	INC	R0		;   inc a
+	MOVB	R0, @#DRCHRO	;   ld (DrawChar_row),a
+	CALL	GSADDR		;   call GetScreenAddr
+	INC	R3		;   inc hl
+	POP	R1		;   pop bc        ; restore counter
+	POP	R4
+	SOB	R1, DRCHR8	;   djnz DrawChar_8
+DRCHRF:				; DrawChar_fin:   ; All done, finalizing
+	MOV	#L86D7, R3	;   ld hl,L86D7   ; penCol address
+	MOVB	@#DRCHRW, R0	;   ld a,(DrawChar_width)
+	MOVB	(R3), R5	;   add a,(hl)
+	BIC	#177400, R5
+	ADD	R5, R0
+	MOVB	R0, (R3)	;   ld (hl),a     ; updating penCol
+	POP	R1		;   pop bc
+	POP	R3		;   pop hl
+	RETURN			;   ret
+DRCHRW:	.BYTE	0		; DrawChar_width:   DB 0    ; Saved symbol width
+DRCHRO:	.BYTE	0		; DrawChar_row:     DB 0    ; Saved current row number
+	.EVEN
+
+
+; Copy shadow screen 24*128=3072 bytes to UKNC screen
+; ShowShadowScreen:
+SHOWSC:
+	MOV	#SHADOW, R2
+	MOV	#112510, R4		; Адрес в ВОЗУ УКНЦ
+	MOV	#128., R3		; количество строк
+SHOWS1: 				; Начало цикла по строкам
+	MOV	#6., R5			; 24. колонки в строке
+	MOV	#176640, R1		; Адрес порта адреса косвенной записи УКНЦ
+SHOWS2:					; Начало цикла по строке
+; 1
+	CLR	R0
+	BISB	(R2), R0		; берём 8 пикселов
+	SWAB	R0
+	BISB	(R2)+, R0		;
+	MOV	R4, (R1)		;   пишем адрес
+	MOV	R0, @#176642		;   пишем в ВОЗУ УКНЦ
+	INC	R4			; к следующей колонке
+; 2
+	CLR	R0
+	BISB	(R2), R0		; берём 8 пикселов
+	SWAB	R0
+	BISB	(R2)+, R0		;
+	MOV	R4, (R1)		;   пишем адрес
+	MOV	R0, @#176642		;   пишем в ВОЗУ УКНЦ
+	INC	R4			; к следующей колонке
+; 3
+	CLR	R0
+	BISB	(R2), R0		; берём 8 пикселов
+	SWAB	R0
+	BISB	(R2)+, R0		;
+	MOV	R4, (R1)		;   пишем адрес
+	MOV	R0, @#176642		;   пишем в ВОЗУ УКНЦ
+	INC	R4			; к следующей колонке
+; 4
+	CLR	R0
+	BISB	(R2), R0		; берём 8 пикселов
+	SWAB	R0
+	BISB	(R2)+, R0		;
+	MOV	R4, (R1)		;   пишем адрес
+	MOV	R0, @#176642		;   пишем в ВОЗУ УКНЦ
+	INC	R4			; к следующей колонке
+;
+	SOB	R5, SHOWS2		; Конец цикла по строке
+	ADD	#070, R4		; к следующей строке экрана УКНЦ
+	SOB	R3, SHOWS1		; Конец цикла по строкам
+	RETURN	
+
+; Clear block on the shadow screen
+;   R3=row/col, R2=rows/cols
+;   columns are 8px wide; rows=1..128, row=0..127; col=0..23, cols=1..24
+CLBLK:
+	PUSH	R0
+	PUSH	R1
+	PUSH	R4
+	MOV	R3, R4
+	SWAB	R4
+	BIC	#177400, R4		; row 0..127
+	BIC	#177400, R3		; col 0..23
+	MOV	R2, R1
+	SWAB	R1
+	BIC	#177400, R1		; rows 1..128
+	BIC	#177400, R2		; cols 1..24
+	MOV	R4, R0
+	ADD	R4, R4			; now R4 = row * 2
+	ADD	R0, R4			; now R4 = row * 3
+	ADD	R4, R4
+	ADD	R4, R4
+	ADD	R4, R4			; now R4 = row * 24
+	ADD	R3, R4			; now R4 = row * 24 + col
+	ADD	#SHADOW, R4		; now R4 = start address
+CLBLK1:	PUSH	R4
+	MOV	R2, R0
+CLBLK2: CLRB	(R4)+
+	;MOVB	#201, (R4)+
+	SOB	R0, CLBLK2
+	POP	R4
+	ADD	#24., R4
+	SOB	R1, CLBLK1
+	POP	R4
+	POP	R1
+	POP	R0
+	RETURN
+
+
+;------------------------------------------------------------------------------
+
+.INCLUDE /DESOLD.MAC/
+
+.INCLUDE /DESOLF.MAC/
+
+.INCLUDE /DESOLS.MAC/
+
+;.INCLUDE /DESOLT.MAC/
+
+;------------------------------------------------------------------------------
+
+	.EVEN
+; Shadow screen, 192 x 138 pixels
+;   12*2*(64*2+10) = 3312 bytes
+SHADOW::
+	.BLKB	3312.
+
+;------------------------------------------------------------------------------
+
+STACK::	.BLKW	60		; Под стек
+
+;------------------------------------------------------------------------------
+	.END	START

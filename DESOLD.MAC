@@ -1,0 +1,37 @@
+
+;
+; Variables
+;
+	.EVEN
+L86D7:  .BYTE 0		; penCol
+L86D8:  .BYTE 0		; penRow
+;
+LDB73:  .BYTE 0		; ?? $00 $01
+;LDB74:	.BYTE	12.	; Line width in tiles
+LDB75:  .BYTE 0		; Player Direction/orientation: $00 down, $01 up, $02 left, $03 right
+LDB76:  .BYTE 6		; X coord in tiles: $01 $06 $0A INC/DEC
+LDB77:  .BYTE 060	; Y coord/line on the screen: 0..127
+LDB78:  .BYTE 3		; Y coord in tiles: $03 $06 INC/DEC
+LDB79:  .BYTE 0		; Room number
+LDB7A:  .WORD	100.	; Health; initially $64
+LDB7C:  .BYTE 0		; ??
+LDB7D:  .BYTE 0		; Look/shoot switch: $00 look, $01 shoot
+LDB7E:  .BYTE 0		; Alien X coord ??
+LDB7F:  .BYTE 0		; Alien Y coord ??
+LDB80:  .BYTE 0		; Alien Y tile coord ??
+LDB81:  .BYTE 0		; Alien type: $02
+LDB82:  .BYTE 0		; Alien: $01 = we already have an alien in the room
+LDB83:  .BYTE 0		; Alien tile phase
+LDB84:  .BYTE 2		; Alien $01 = alive, $00 = dead
+LDB85:  .BYTE 3		; Alien health: $03, then DEC to $00
+LDB86:  .BYTE 0		; Alien direction/orientation: $00 down, $01 up, $02 left, $03 right
+LDB87:  .BYTE 0		; Alien position within the room, calculated in LB6ED
+LDB88:  .BYTE 0		; Bullet X coord in tiles
+LDB89:  .BYTE 0		; Bullet Y coord/line on the screen
+LDB8A:  .BYTE 0		; Bullet Y coord in tiles
+LDB8B:  .BYTE 0		; Bullet Direction/orientation: $00 down, $01 up, $02 left, $03 right
+LDB8C:  .BYTE 0		; shooting flag ??
+LDB8D:  .BYTE 0		; $01 = shooting in process, bullet in the air
+;  .BYTE 00
+LDB8F:  .BYTE 072	; Menu Y pos: $3A $46 $52 $5E $6A
+
