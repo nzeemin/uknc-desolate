@@ -1,8 +1,11 @@
-/*.OBJ
-/OUTPUT.MAP
-/DESOLA.LST
-/VERSIO.MAC
 /x-*
+/.vscode
+/*.OBJ
+/*.LST
+/*.MAP
+/*.SAV
+/*.log
+/VERSIO.MAC
 /SpriteRotate/bin
 /SpriteRotate/obj
 /SpriteRotate/*.suo

@@ -32,22 +32,31 @@ START::
 	MOV	#000400, (R2)		;   пишем в ВОЗУ УКНЦ
 ;TODO: Раскодировать титульный экран и скопировать надпись DESOLATE
 
-	MOV	#0, R3
-	MOV	#<128.*400+24.>, R2
-	CALL	CLBLK
+	CALL	CLSHAD			; очистка теневого экрана
+;	MOV	#0, R3
+;	MOV	#<128.*400+24.>, R2
+;	CALL	CLBLK
 
-	MOV	#3, @#L86D7
-	MOV	#65., R0
-	CALL	DRCHAR
-;	MOV	#32., R0
-;	CALL	DRCHAR
-;	MOV	#66., R0
-;	CALL	DRCHAR
+	MOV	#SE117, R3
+	CALL	LBEDE			; печать строки с задержками
 
-	MOVB	#0, @#L86D7
-	MOVB	#14., @#L86D8
-	MOV	#STR, R3
-	CALL	DRSTR
+;	MOV	#0, R3
+;	MOV	#0, R2
+;	MOV	#<TILES1+40>, R4
+;	CALL	L9EAD
+;	MOV	#32., R3
+;	MOV	#2, R2
+;	MOV	#<TILES1+60*40>, R4
+;	CALL	L9EAD
+
+;	MOV	#, R3
+;	MOV	#LDBF5, R2
+;	CALL	LB9F1
+
+;	MOVB	#0, @#L86D7
+;	MOVB	#14., @#L86D8
+;	MOV	#STR, R3
+;	CALL	DRSTR
 
 	CALL	SHOWSC
 
@@ -114,7 +123,7 @@ GETKEY:	TSTB	@#177560	; есть символ?
 	BPL	10$		; нет символа => выходим
 	MOVB	@#177562, R0	; символ в R0
 	CMPB	R0, #33		; Esc ?
-	BEQ	ESCKEY		
+	BEQ	ESCKEY
 	RETURN
 10$:	CLR	R0		; возвращаем пустой код клавиши
 	RETURN
@@ -135,8 +144,8 @@ GSADDR:
 	ADD	#SHADOW, R3
 	MOVB	@#L86D7, R0	; get penCol
 	BIC	#177400, R0
-	ASR	R0	
-	ASR	R0	
+	ASR	R0
+	ASR	R0
 	ASR	R0		; now A = 8px column
 	ADD	R0, R3		; now R3 = line address + column
 	RETURN
@@ -151,9 +160,27 @@ DRSTR1:
 	CALL	DRCHAR
 	BR	DRSTR
 
+; Draw decimal number R3 in 5 digits
+DRNUM5:	MOV	#10000., R1
+	CALL	DRNUM1
+	MOV	#1000., R1
+	CALL	DRNUM1
+; Draw decimal number R3 in 3 digits
+DRNUM3:	MOV	#100., R1
+	CALL	DRNUM1
+	MOV	#10., R1
+	CALL	DRNUM1
+	MOV	#1., R1
+DRNUM1:	MOV	#<060-1>, R0
+DRNUM2:	INC	R0
+	SUB	R1, R3
+	BHIS	DRNUM2
+	ADD	R1, R3
+;	JMP	DRCHAR
+;
 ; Draw character on the screen using FONTPR font
 ;   R0 = character to show: $00-$1F space with R0 width; $20 space
-; Saves: R1, R3
+; Preserves: R1, R3
 DRCHAR:
 	PUSH	R3		;   push hl
 	PUSH	R1		;   push bc
@@ -242,6 +269,7 @@ DRCHR6:				; DrawChar_6:
 DRCHR8:	PUSH	R4		; DrawChar_8:     ; loop by lines
 	PUSH	R1		;   push bc       ; save counter
 	MOVB	(R2)+, R0	;   ld a,(de) / inc de
+	BIC	#177400, R0
 DRCHR9:				; DrawChar_9:     ; loop for shift
 	DEC	R4		;   dec c
 	BEQ	DRCHRA		;   jr z, DrawChar_A
@@ -270,7 +298,6 @@ DRCHRF:				; DrawChar_fin:   ; All done, finalizing
 DRCHRW:	.BYTE	0		; DrawChar_width:   DB 0    ; Saved symbol width
 DRCHRO:	.BYTE	0		; DrawChar_row:     DB 0    ; Saved current row number
 	.EVEN
-
 
 ; Copy shadow screen 24*128=3072 bytes to UKNC screen
 ; ShowShadowScreen:
@@ -318,7 +345,7 @@ SHOWS2:					; Начало цикла по строке
 	SOB	R5, SHOWS2		; Конец цикла по строке
 	ADD	#070, R4		; к следующей строке экрана УКНЦ
 	SOB	R3, SHOWS1		; Конец цикла по строкам
-	RETURN	
+	RETURN
 
 ; Clear block on the shadow screen
 ;   R3=row/col, R2=rows/cols
@@ -359,13 +386,15 @@ CLBLK2: CLRB	(R4)+
 
 ;------------------------------------------------------------------------------
 
+.INCLUDE /DESOLB.MAC/
+
 .INCLUDE /DESOLD.MAC/
 
 .INCLUDE /DESOLF.MAC/
 
 .INCLUDE /DESOLS.MAC/
 
-;.INCLUDE /DESOLT.MAC/
+.INCLUDE /DESOLT.MAC/
 
 ;------------------------------------------------------------------------------
 

@@ -6,32 +6,150 @@
 L86D7:  .BYTE 0		; penCol
 L86D8:  .BYTE 0		; penRow
 ;
-LDB73:  .BYTE 0		; ?? $00 $01
+LDB73:  .BYTE 0		; ?? 0 001
 ;LDB74:	.BYTE	12.	; Line width in tiles
-LDB75:  .BYTE 0		; Player Direction/orientation: $00 down, $01 up, $02 left, $03 right
-LDB76:  .BYTE 6		; X coord in tiles: $01 $06 $0A INC/DEC
+LDB75:  .BYTE 0		; Player Direction/orientation: 0 down, 001 up, $02 left, $03 right
+LDB76:  .BYTE 6		; X coord in tiles: 001 $06 $0A INC/DEC
 LDB77:  .BYTE 060	; Y coord/line on the screen: 0..127
 LDB78:  .BYTE 3		; Y coord in tiles: $03 $06 INC/DEC
 LDB79:  .BYTE 0		; Room number
 LDB7A:  .WORD	100.	; Health; initially $64
 LDB7C:  .BYTE 0		; ??
-LDB7D:  .BYTE 0		; Look/shoot switch: $00 look, $01 shoot
+LDB7D:  .BYTE 0		; Look/shoot switch: 0 look, 001 shoot
 LDB7E:  .BYTE 0		; Alien X coord ??
 LDB7F:  .BYTE 0		; Alien Y coord ??
 LDB80:  .BYTE 0		; Alien Y tile coord ??
 LDB81:  .BYTE 0		; Alien type: $02
-LDB82:  .BYTE 0		; Alien: $01 = we already have an alien in the room
+LDB82:  .BYTE 0		; Alien: 001 = we already have an alien in the room
 LDB83:  .BYTE 0		; Alien tile phase
-LDB84:  .BYTE 2		; Alien $01 = alive, $00 = dead
-LDB85:  .BYTE 3		; Alien health: $03, then DEC to $00
-LDB86:  .BYTE 0		; Alien direction/orientation: $00 down, $01 up, $02 left, $03 right
+LDB84:  .BYTE 2		; Alien 001 = alive, 0 = dead
+LDB85:  .BYTE 3		; Alien health: $03, then DEC to 0
+LDB86:  .BYTE 0		; Alien direction/orientation: 0 down, 001 up, $02 left, $03 right
 LDB87:  .BYTE 0		; Alien position within the room, calculated in LB6ED
 LDB88:  .BYTE 0		; Bullet X coord in tiles
 LDB89:  .BYTE 0		; Bullet Y coord/line on the screen
 LDB8A:  .BYTE 0		; Bullet Y coord in tiles
-LDB8B:  .BYTE 0		; Bullet Direction/orientation: $00 down, $01 up, $02 left, $03 right
+LDB8B:  .BYTE 0		; Bullet Direction/orientation: 0 down, 001 up, $02 left, $03 right
 LDB8C:  .BYTE 0		; shooting flag ??
-LDB8D:  .BYTE 0		; $01 = shooting in process, bullet in the air
+LDB8D:  .BYTE 0		; 001 = shooting in process, bullet in the air
 ;  .BYTE 00
 LDB8F:  .BYTE 072	; Menu Y pos: $3A $46 $52 $5E $6A
-
+LDB90:                  ; Flags about performed progress
+  .BYTE 000
+  .BYTE 000             ; +001: 001 = the Generator is working
+  .BYTE 000             ; +$02: 001 = the Workstation is working
+  .BYTE 000
+  .BYTE 000             ; +$04: 001 = Life-Support System is working
+  .BYTE 000             ; +$05: 001 = Evacuation Deck re-pressurised
+  .BYTE 000             ; +$06: 001 = Guidance System working
+  .BYTE 000
+  .BYTE 000,000,000,000
+LDB9C:                  ; Inventory items: 0 = not having, 001 = have it
+  .BYTE 000,000,000,000,000,000,000,000
+  .BYTE 000,000,000,000,000,000,000,000
+  .BYTE 000,000,000,000,000,000,000,000
+  .BYTE 000,000,000,000,000,000,000,000
+  .BYTE 000,000,000,000,000,000,000
+LDBC3:  .WORD 00000     ; Player Deaths count
+LDBC5:  .WORD 00000     ; Enemies Killed count
+LDBC7:  .BYTE 000       ; Items Found count
+LDBF4:  .BYTE 000       ; Counter of achievements on the Stats screen
+;
+; Screen/room buffer, 12 * 8 = 96 bytes
+LDBF5:
+  .BYTE 000,000,000,000,000,000,000,000
+  .BYTE 000,000,000,000,000,000,000,000
+  .BYTE 000,000,000,000,000,000,000,000
+  .BYTE 000,000,000,000,000,000,000,000
+  .BYTE 000,000,000,000,000,000,000,000
+  .BYTE 000,000,000,000,000,000,000,000
+  .BYTE 000,000,000,000,000,000,000,000
+  .BYTE 000,000,000,000,000,000,000,000
+  .BYTE 000,000,000,000,000,000,000,000
+  .BYTE 000,000,000,000,000,000,000,000
+  .BYTE 000,000,000,000,000,000,000,000
+  .BYTE 000,000,000,000,000,000,000,000
+LDC55:  .BYTE 003          ; Menu background phase: 000..$07
+LDC56:  .BYTE 000          ; Offset in the room, in tiles ??
+LDC57:  .BYTE 000          ; Door Lock pos ?? $06 DEC
+;  .BYTE 000
+LDC59:  .BYTE 104          ; Delay factor: $64 $28 000 $44 $96 $FF
+LDC5A:  .BYTE 000          ; Inventory items count??
+LDC5B:                    ; Inventory list
+  .BYTE 143,143,143,143,143,143,143,143
+  .BYTE 143,143,143,143,143,143,143,143
+  .BYTE 143,143,143,143,143,143,143,143
+  .BYTE 143,143,143,143,143,143,143,143
+  .BYTE 143,143,143,143,143,143,143
+LDC82:  .BYTE 000          ; Inventory current
+LDC83:  .BYTE 000          ; Inventory X
+LDC84:  .BYTE 000          ; Inventory Y
+LDC85:  .BYTE 000          ; Delay and copy screen flag used in LBEDE
+LDC86:  .BYTE 000          ; new room number??
+LDC87:  .BYTE 000          ; ??
+LDC88:  .BYTE 000          ; current offset in the room description 000..$30
+LDC89:  .BYTE 000          ; Current inventory item / Picked up item??
+LDC8A:  .BYTE 000          ; Direction to other room ?? 001 down, $02 up, $03 left, $04 right
+LDC8B:  .BYTE 377          ; Access code slot number - see LDCA2 table
+LDC8C:  .BYTE 000          ; Access code level ??
+LDC8D:  .BYTE 000,000,000,000,000    ; Buffer for entering access code
+LDC92:  .BYTE 036,032,037,041    ; level 1 access code buffer
+LDC96:  .BYTE 036,032,037,041    ; level 2 access code buffer
+LDC9A:  .BYTE 036,032,037,041    ; level 3 access code buffer
+LDC9E:  .BYTE 036,032,037,041    ; level 4 access code buffer
+LDCA2:    ; Table with Access code slots - marks where door locks codes accepted
+  .BYTE 000,000,000,000,000,000,000,000
+  .BYTE 000,000,000,000,000,000,000,000
+  .BYTE 000,000,000,000,000,000,000,000
+  .BYTE 000,000,000,000,000,000,000,000
+  .BYTE 000,000,000,000,000,000,000,000
+  .BYTE 000,000,000,000,000,000,000,000
+  .BYTE 000,000,000,000,000,000,000,000
+  .BYTE 000,000,000,000,000,000,000,000
+  .BYTE 000,000,000,000,000,000,000,000
+  .BYTE 000,000,000,000,000,000,000,000
+LDCF2:  .BYTE 000          ; ?? 000 001
+LDCF3:  .BYTE 000          ; Left margin size for text
+LDCF4:  .BYTE 016          ; Line interval for text: 12 or 14
+LDCF5:  .BYTE 000          ; ?? 000 001
+;  .BYTE 000
+LDCF7:  .BYTE 000          ; Weapon: 000 001
+LDCF8:  .BYTE 000          ; 001 = Data cartridge selected, used on the Data cartridge reader screen
+LDCF9:  
+  .BYTE 040,040,040,040,040,040,040,040
+  .BYTE 040,040,040,040,040,040,040,040
+  .BYTE 040,040,040,040,040,040,040,040
+  .BYTE 040,040,040,040,040,040,040,040
+  .BYTE 040,040,040,040,040,040,040,040
+  .BYTE 040,040,040,040,040,040,040,040
+  .BYTE 040,040,040,040,040,040,040,040
+  .BYTE 040,040,040,040,040,040,040,040
+  .BYTE 040,040,040,040,040,040,040,040
+  .BYTE 040,040,040,040,040,040,040,040
+  .BYTE 040,040,040,040,040,040,040,040
+  .BYTE 040,000
+SE029:  ; Empty string
+LDD53:  .BYTE 000          ; empty string
+LDD54:  .BYTE 000          ; Player's animation phase 0..3
+LDD55:  .BYTE 000          ; shooting flag for player's animation ?? 000 001
+LDD56:  .BYTE 000          ; Credits counter within one line: 0..11
+LDD57:  .BYTE 000          ; Credits line number
+;
+	.EVEN
+LDD58:                    ; Table of Credits strings
+  .WORD SE02B,SE02D,SE029,SE02F,SE031
+  .WORD SE033,SE035,SE037,SE039,SE03B
+  .WORD SE029,SE03D,SE03F,SE041,SE043
+  .WORD SE045,SE047,SE049,SE04B,SE04D
+  .WORD SE04F,SE051,SE053,SE055,SE057
+  .WORD SE059,SE05B,SE071,SE073,SE075
+  .WORD SE029,SE05D,SE05F,SE061,SE063
+  .WORD SE029,SE029,SE065,SE067,SE069
+  .WORD SE029,SE06B,SE029,SE029,SE06D
+  .WORD SE077,SE029,SE029,SE029,SE029
+  .WORD SE029,SE029,SE029,SE029,SE029
+  .WORD SE029,SE029,SE029,SE06F,SE029
+  .WORD SE029,SE029,SE029,SE029,SE029
+  .WORD SE029,SE029,SE029,SE029,SE029
+  .WORD SCR40,SCR41  ; 72
+;TODO

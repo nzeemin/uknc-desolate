@@ -1,0 +1,98 @@
+
+; Put background tile on the screen, 16x16 -> 16x16 on shadow screen, no mask
+;   R3 = row; R2 = tile column 0..11; R4 = tile address
+L9EAD:
+	ADD	R2, R2
+	ADD	R2, R2
+	ADD	R2, R2
+	ADD	R2, R2
+	MOVB	R2, @#L86D7		; penCol
+	MOV	R3, R0			; penRow
+	CALL	GSADDR			; now R3 = screen addr
+	MOV	#8., R1			; 8 row pairs
+L9EAD1:
+; Draw 1st line
+	MOVB	(R4)+, (R3)+
+	MOVB	(R4)+, (R3)
+	ADD	#<24.-1>, R3
+; Draw 2nd line
+	MOVB	(R4)+, (R3)+
+	MOVB	(R4)+, (R3)
+	ADD	#<24.-1>, R3
+; Continue the loop
+	SOB	R1, L9EAD1
+	RETURN
+
+; Clear shadow screen
+; 128+10 lines, 24 8px columns; 24 * 138 = 3312 bytes
+CLSHAD:
+L9FCF:	MOV	#138., R1		; 24 * 138 = 3312
+	MOV	#SHADOW, R3
+L9FCF1:	CLR	(R3)+			; bytes 0-1
+	CLR	(R3)+			; 2-3
+	CLR	(R3)+			; 4-5
+	CLR	(R3)+			; 6-7
+	CLR	(R3)+			; 8-9
+	CLR	(R3)+			; 10-11
+	CLR	(R3)+			; 12-13
+	CLR	(R3)+			; 14-15
+	CLR	(R3)+			; 16-17
+	CLR	(R3)+			; 18-19
+	CLR	(R3)+			; 20-21
+	CLR	(R3)+			; 22-23
+	SOB	R1, L9FCF1
+	RETURN
+
+; Delay by LDC59
+LB2D0:
+;TODO
+	RETURN
+
+; Decode the block from RLE sequence
+;   R3 = address decode from (usually encoded room/screen)
+;   R2 = address decode to
+;   R1 = number of bytes to decode
+LB9F1:	MOVB	(R3)+, R0
+	CMPB	R0, #377	; repeater?
+	BEQ	LB9F13
+	MOVB	R0, (R2)+
+	SOB	R1, LB9F1
+LB9F11:	RETURN
+LB9F13:	MOVB	(R3)+, R0
+	BIC	#177400, R0
+	INC	R3
+LB9F14:	DEC	R3
+	MOVB	(R3)+, (R2)+
+	DEC	R1
+	BEQ	LB9F11
+	SOB	R0, LB9F14
+	BR	LB9F1
+
+; Draw string on the screen
+;   R3 = String address
+LBEDE:
+	MOVB	(R3)+, R0
+	BNE	LBEDE1
+	RETURN
+LBEDE1:	CMPB	R0, #174	; CP 7Ch	; '|' - line end ?
+	BEQ	LBF1B
+	PUSH	R3
+	CALL	DRCHAR
+	MOVB	@#LDC85, R0		; get Delay and copy screen flag
+	BEQ	LBEF91
+	CALL	LB2D0			; Delay
+	CALL	SHOWSC			; Copy shadow screen to UKNC screen
+LBEF91:
+	POP	R3
+	BR	LBEDE
+LBF1B:					; Line end
+	PUSH	R1
+	MOVB	@#L86D8, R1		; Get penRow 0..127
+	MOVB	@#LDCF4, R0		; Line interval for text
+	ADD	R1, R0
+	MOVB	R0, @#L86D8		; Set penRow
+	MOVB	@#LDCF3, @#L86D7	; Get left margin size for text -> set penCol
+	POP	R1
+	BR	LBEDE
+
+	RETURN
