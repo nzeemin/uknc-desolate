@@ -42,14 +42,23 @@ START::
 	CALL	CTITLE
 	CALL	CLSHAD			; очистка теневого экрана
 
-	CLR	@#L86D7
-	MOV	#SE117, R3
-	CALL	LBEDE			; печать строки с задержками
+;	CLR	@#L86D7
+;	MOV	#SE117, R3
+;	CALL	LBEDE			; печать строки с задержками
 
-;	MOV	#LF4B5, R3		; Decode from - Main menu screen
-;	MOV	#<12.*3>, R1		; need only 3 tile lines
+;	MOV	#LF468, R3		; Decode from
+;	MOV	#96., R1
 ;	MOV	#LDBF5, R2		; Decode screen to
 ;	CALL	LB9F1			; Decode
+;	MOV	#LDBF5, R3
+;	CALL	LB177			; отрисовать экран из тайлов
+
+;	MOV	#LBFF8, R3		; Decode from Room #0
+;	MOV	#96., R1
+;	MOV	#LDBF5, R2		; Decode screen to
+;	CALL	LB9F1			; Decode
+;	MOV	#LDBF5, R3
+;	CALL	LA88F			; отрисовать экран из тайлов
 
 ;	MOV	#0, R3
 ;	MOV	#0, R2
@@ -68,6 +77,10 @@ START::
 ;	MOVB	#14., @#L86D8
 ;	MOV	#STR, R3
 ;	CALL	DRSTR
+
+;	CALL	LAB28			; Small message popup
+
+	CALL	LB0A2			; Inventory
 
 	CALL	SHOWSC
 
@@ -110,7 +123,7 @@ PRINT:
 	MOV	R0, @#177566	; передаём символ в канал 0
 	BR	10$
 
-;Подпрограмма: пауза после очистки экрана чтобы ПП закончил работу
+; Подпрограмма: пауза после очистки экрана чтобы ПП закончил работу
 PAUSE:	; Pause to let PPU finish the previous commands
 	MOV	#177777, R5
 1$:	NOP
@@ -442,7 +455,6 @@ CLBLK2: CLRB	(R4)+
 	POP	R1
 	POP	R0
 	RETURN
-
 
 ;------------------------------------------------------------------------------
 

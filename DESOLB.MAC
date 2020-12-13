@@ -23,6 +23,10 @@ L9EAD1:
 	SOB	R1, L9EAD1
 	RETURN
 
+; Copy shadow screen to UKNC screen
+;
+L9FEA=SHOWSC
+
 ; Clear shadow screen
 ; 128+10 lines, 24 8px columns; 24 * 138 = 3312 bytes
 CLSHAD:
@@ -41,6 +45,132 @@ L9FCF1:	CLR	(R3)+			; bytes 0-1
 	CLR	(R3)+			; 20-21
 	CLR	(R3)+			; 22-23
 	SOB	R1, L9FCF1
+	RETURN
+
+; Scan keyboard
+; Returns key in A; Z=0 for key, Z=1 for no key
+;
+LA0F1:
+;TODO
+	RETURN
+
+; Display 96 tiles on the screen with background tiles (Tileset1)
+;   R3 = Address where the 96 tiles are placed
+LA88F:
+	CLR	R1		; col
+	CLR	R2		; row
+LA892:	PUSH	R1
+	PUSH	R3
+	PUSH	R2
+	MOVB	(R3), R4
+	BEQ	LA8B0		; empty tile? => skip it
+	CMP	R4, #107	; menu background tile?
+	BNE	LA8921
+	CALL	LBC29		; add phase
+LA8921:	ADD	R4, R4
+	ADD	R4, R4
+	ADD	R4, R4
+	ADD	R4, R4
+	ADD	R4, R4		; now R4 = tile * 32
+	ADD	#TILES1, R4
+	MOV	R2, R3		; row
+	MOV	R1, R2		; col
+	CALL	L9EAD		; Put tile; R3 = row; R2 = col; R4 = tile address
+LA8B0:	POP	R2
+	POP	R3
+	POP	R1
+	INC	R3		; next tile
+	INC	R1		; next col
+	CMP	R1, #12.	; was last column?
+	BNE	LA892		; no => continue the loop
+	CLR	R1
+	ADD	#16., R2	; next row
+	CMPB	#128., R2	; was last tile row?
+	BNE	LA892		; no => continue the loop
+	RETURN
+;
+LA8C6:
+	CLR	@#LDD54			; clear animation phase
+;
+; Draw Player tiles
+LA8CD:
+;TODO
+	RETURN
+
+;
+; Show small message popup
+LAB28:
+	PUSH	R1
+	PUSh	R2
+	MOV	#LEB27, R3	; Decode from: Small message popup
+	CALL	LADEE		; Decode 96 bytes of the screen to LDBF5
+	CALL	LB177		; Display screen HL from tiles with Tileset2
+	POP	R2
+	POP	R1
+	RETURN
+
+; Decode current room to LDBF5
+;   Returns: R3 = LDBF5
+LADE5:
+	MOVB	@#LDB79, R0	; Get the room number
+	MOV	#LDE97, R3	; List of encoded room addresses
+	CALL	LADFF		; now R3 = encoded room address
+; Entry point: Decode 96 bytes to LDBF5
+LADEE:
+	MOV	#96., R1	; decode 96 bytes
+; Decode the room/screen to LDBF5
+;   R3 = decode from; R1 = tile count to decode
+;   Returns: R3 = LDBF5
+LADF5:
+	MOV	#LDBF5, R2
+	CALL	LB9F1		; Decode the room/screen
+	MOV	#LDBF5, R3
+	RETURN
+;
+; Get address from table
+;   R0 = Element number
+;   R3 = Table address
+LADFF:
+	ADD	R0, R0
+	ADD	R0, R3
+	MOV	(R3), R3
+	RETURN
+;
+; Decode current room description to LDBF5
+;   Returns: R3 = LDBF5
+LAE09:
+	MOVB	@#LDB79, R0	; Get room number
+	MOV	#LDF27, R3	; Table of adresses for room descriptions
+	CALL	LADFF		; Get address from table by index A
+	MOV	#49., R1	; decode 49 bytes
+	BR	LADF5		; Decode the room/screen to LDBF5
+
+;
+; Open the Inventory pop-up
+;
+LB0A2:
+	MOV	#LF329, R3	; Encoded screen for Inventory/Info popup
+	CALL	LADEE		; Decode 96 bytes of the screen to LDBF5
+	CALL	LB177		; Display screen HL from tiles with Tileset 2
+	MOVB	#22., @#LDCF3	; Left margin size for text
+	MOVB	#12., @#LDCF4	; Line interval for text
+	CLRB	@#LDCF5		; Data cartridge reader slot??
+	CLRB	@#LDC59		; set delay factor
+	CLRB	@#LDC5A		; clear Inventory items count
+	CLRB	@#LDCF8
+	MOVB	#16., @#LDC83	; set X pos
+	MOVB	#24., @#LDC84	; set Y pos
+	MOV	#13060, @#L86D7	; Set penRow/penCol
+	MOV	#SE0BB, R3	; "- INVENTORY -"
+	CALL	DRSTR
+	MOV	#LDB9C, R3
+	MOV	#29., R1
+LB0E0:				; loop by B
+;TODO
+	RETURN
+
+LBC29:
+;TODO
 	RETURN
 
 ; Display screen from tiles with Tileset2
