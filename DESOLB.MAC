@@ -43,6 +43,40 @@ L9FCF1:	CLR	(R3)+			; bytes 0-1
 	SOB	R1, L9FCF1
 	RETURN
 
+; Display screen from tiles with Tileset2
+;   R3 = Screen in tiles, usually LDBF5
+LB177:
+	CLR	R1		; col
+	CLR	R2		; row
+LB1770:
+	PUSH	R1
+	PUSH	R2
+	MOVB	(R3)+, R4
+	PUSH	R3		; store tile address
+	CMPB	#001, R4
+	BEQ	LB1771
+	ADD	R4, R4
+	ADD	R4, R4
+	ADD	R4, R4
+	ADD	R4, R4
+	ADD	R4, R4
+	ADD	R4, R4		; now R4 = tile * 64
+	ADD	#TILES2, R4	; R4 = tile address
+	MOV	R2, R3		; row
+	MOV	R1, R2		; col
+	CALL	DRTIL2		; Draw tile from Tileset2; R3 = row, R2 = col, R4 = tile addr
+LB1771:	POP	R3		; restore tile address
+	POP	R2		; restore row
+	POP	R1		; restore col
+	ADD	#16., R1	; next col
+	CMP	R1, #<16.*12.>	; end of line?
+	BNE	LB1770		; no => continue the loop
+	CLR	R1
+	ADD	#16., R2	; next row
+	CMPB	#128., R2	; last row?
+	BNE	LB1770		; no => continue the loop
+	RETURN
+
 ; Delay by LDC59
 LB2D0:
 ;TODO

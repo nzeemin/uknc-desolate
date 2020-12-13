@@ -11,6 +11,10 @@
 
 ;------------------------------------------------------------------------------
 
+SCRTOP=115110		; Начало экрана, косвенный адрес для УКНЦ
+
+;------------------------------------------------------------------------------
+
 	.ASECT
 	.=001000
 START::
@@ -22,23 +26,30 @@ START::
 ; Точки по углам игрового экрана
 	MOV	#176640, R1		; Адрес порта адреса косвенной записи УКНЦ
 	MOV	#176642, R2		; Адрес в ВОЗУ УКНЦ
-	MOV	#112367, (R1)		;   пишем косвенный адрес
+	MOV	#<SCRTOP-121>, (R1)	;   пишем косвенный адрес
 	MOV	#100000, (R2)		;   пишем в ВОЗУ УКНЦ
-	MOV	#112420, (R1)		;   пишем косвенный адрес
+	MOV	#<SCRTOP-120+30>, (R1)	;   пишем косвенный адрес
 	MOV	#000400, (R2)		;   пишем в ВОЗУ УКНЦ
-	MOV	#136507, (R1)		;   пишем косвенный адрес
+	MOV	#<SCRTOP+24000-1>, (R1)	;   пишем косвенный адрес
 	MOV	#100000, (R2)		;   пишем в ВОЗУ УКНЦ
-	MOV	#136540, (R1)		;   пишем косвенный адрес
+	MOV	#<SCRTOP+24000+30>, (R1) ;   пишем косвенный адрес
 	MOV	#000400, (R2)		;   пишем в ВОЗУ УКНЦ
-;TODO: Раскодировать титульный экран и скопировать надпись DESOLATE
-
+; LDBF5 уже содержит первые три строки титульного экрана с надписью DESOLATE
+; Получаем теневой экран из тайлов и копируем надпись DESOLATE на экран УКНЦ
 	CALL	CLSHAD			; очистка теневого экрана
-;	MOV	#0, R3
-;	MOV	#<128.*400+24.>, R2
-;	CALL	CLBLK
+	MOV	#LDBF5, R3
+	CALL	LB177			; Display screen from tiles with Tileset2
+	CALL	CTITLE
+	CALL	CLSHAD			; очистка теневого экрана
 
+	CLR	@#L86D7
 	MOV	#SE117, R3
 	CALL	LBEDE			; печать строки с задержками
+
+;	MOV	#LF4B5, R3		; Decode from - Main menu screen
+;	MOV	#<12.*3>, R1		; need only 3 tile lines
+;	MOV	#LDBF5, R2		; Decode screen to
+;	CALL	LB9F1			; Decode
 
 ;	MOV	#0, R3
 ;	MOV	#0, R2
@@ -148,6 +159,48 @@ GSADDR:
 	ASR	R0
 	ASR	R0		; now A = 8px column
 	ADD	R0, R3		; now R3 = line address + column
+	RETURN
+
+; Draw tile with mask 16x16 -> 16x16 on shadow screen - for Tileset2 tiles
+;   R3 = row 0..127; R2 = col 0..191; R4 = tile address
+DRTIL2:
+	MOV	R3, R0		; penRow
+	MOV	R2, @#L86D7	; penCol
+	CALL	GSADDR		; now R3 = screen addr
+	MOV	#8., R1		; 8 row pairs
+DRTILA:
+; 1st line first byte
+	MOVB	(R4)+, R0	; get bits
+	MOVB	(R3), R2	; get shadow screen bits
+	COM	R2
+	BICB	R2, R0
+	BISB	(R4)+, R0	; apply the mask
+	MOVB	R0, (R3)+	; write the result, next col
+; 1st line second byte
+	MOVB	(R4)+, R0	; get bits
+	MOVB	(R3), R2	; get shadow screen bits
+	COM	R2
+	BICB	R2, R0
+	BISB	(R4)+, R0	; apply the mask
+	MOVB	R0, (R3)	; write the result
+	ADD	#<24.-1>, R3
+; 2nd line first byte
+	MOVB	(R4)+, R0	; get bits
+	MOVB	(R3), R2	; get shadow screen bits
+	COM	R2
+	BICB	R2, R0
+	BISB	(R4)+, R0	; apply the mask
+	MOVB	R0, (R3)+	; write the result, next col
+; 2nd line second byte
+	MOVB	(R4)+, R0	; get bits
+	MOVB	(R3), R2	; get shadow screen bits
+	COM	R2
+	BICB	R2, R0
+	BISB	(R4)+, R0	; apply the mask
+	MOVB	R0, (R3)	; write the result
+	ADD	#<24.-1>, R3
+; Contine the loop
+	SOB	R1, DRTILA
 	RETURN
 
 ; Draw string  on shadow screen using FONTPR font
@@ -299,11 +352,18 @@ DRCHRW:	.BYTE	0		; DrawChar_width:   DB 0    ; Saved symbol width
 DRCHRO:	.BYTE	0		; DrawChar_row:     DB 0    ; Saved current row number
 	.EVEN
 
+; Copy DEDSOLATE title from Main Menu shadow screen to UKNC screen
+CTITLE:
+	MOV	#<SHADOW+192.>, R2
+	MOV	#104310, R4		; Адрес в ВОЗУ УКНЦ
+	MOV	#30., R3		; количество строк
+	BR	SHOWS1
+;
 ; Copy shadow screen 24*128=3072 bytes to UKNC screen
 ; ShowShadowScreen:
 SHOWSC:
 	MOV	#SHADOW, R2
-	MOV	#112510, R4		; Адрес в ВОЗУ УКНЦ
+	MOV	#SCRTOP, R4		; Адрес в ВОЗУ УКНЦ
 	MOV	#128., R3		; количество строк
 SHOWS1: 				; Начало цикла по строкам
 	MOV	#6., R5			; 24. колонки в строке
