@@ -53,19 +53,21 @@ START::
 ;	MOV	#<TILES1+60*40>, R4
 ;	CALL	L9EAD
 
-;	MOV	#LBFF8, R3
+;	MOV	#LBFF8, R3	; Room #0
 ;	CALL	LADEE		; Decode 96 bytes to LDBF5
 ;	CALL	LA88F		; Display 96 tiles on the screen
 
 ;	CALL	LB0A2		; Inventory
 ;	CALL	LBBEC		; Info menu item, show Controls
+	CALL	LBADE		; New game
+;	CALL	LBB7E		; Game start
 ;	CALL	LBF6F		; The End
 
-	MOV	#SPRITE, R4
-	MOV	#0, R2
-	MOV	#0, R3
-	CLR	R0
-	CALL	L9EDE
+;	MOV	#SPRITE, R4
+;	MOV	#0, R2
+;	MOV	#0., R3
+;	CLR	R0
+;	CALL	L9EDE
 
 ;	CALL	LAB28		; Small message popup
 
@@ -139,14 +141,15 @@ GETKEY:	TSTB	@#177560	; וסעü סטלגמכ?
 
 ; Wait for any key
 WAITAN:
-;TODO
+	CALL	WAITUP
+	CALL	WTKEY
 	RETURN
-
+;
 ; Wait until no key pressed - to put after ReadKeyboard calls to prevent double-reads of the same key
 WAITUP:
 ;TODO
 	RETURN
-
+;
 ; Get shadow screen address using penCol in L86D7
 ;   R0 = row 0..137
 ;   (L86D7) = penCol 0..191
@@ -176,13 +179,13 @@ DRTIL2:
 	MOV	#8., R1		; 8 row pairs
 	MOV	#24., R2	; line increment
 DRTILA:
-; 1st line first byte
+; 1st line
 	MOV	(R3), R0	; get shadow screen bits
 	BIC	(R4)+, R0	; apply mask
 	BIS	(R4)+, R0	; use pixels
 	MOV	R0, (R3)	; write the result
 	ADD	R2, R3		; next line
-; 2nd line first byte
+; 2nd line
 	MOV	(R3), R0	; get shadow screen bits
 	BIC	(R4)+, R0	; apply mask
 	BIS	(R4)+, R0	; use pixels
@@ -201,7 +204,7 @@ DRSTR:
 DRSTR1:
 	CALL	DRCHAR
 	BR	DRSTR
-
+;
 ; Draw decimal number R3 in 5 digits
 DRNUM5:	MOV	#10000., R1
 	CALL	DRNUM1

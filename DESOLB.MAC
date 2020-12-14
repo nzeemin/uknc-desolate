@@ -51,19 +51,20 @@ L9EAD:
 	ADD	R2, R2
 	ADD	R2, R2
 	ADD	R2, R2
-	MOVB	R2, @#L86D7		; penCol
-	MOV	R3, R0			; penRow
-	CALL	GSADDR			; now R3 = screen addr
-	MOV	#8., R1			; 8 row pairs
+	MOVB	R2, @#L86D7	; penCol
+	MOV	R3, R0		; penRow
+	CALL	GSADDR		; now R3 = screen addr
+	MOV	#4., R1		; 4 * 4 = 16. rows
+	MOV	#24., R2	; line increment
 L9EAD1:
-; Draw 1st line
-	MOVB	(R4)+, (R3)+
-	MOVB	(R4)+, (R3)
-	ADD	#<24.-1>, R3
-; Draw 2nd line
-	MOVB	(R4)+, (R3)+
-	MOVB	(R4)+, (R3)
-	ADD	#<24.-1>, R3
+	MOV	(R4)+, (R3)	; 1st line
+	ADD	R2, R3		; next line
+	MOV	(R4)+, (R3)	; 2nd line
+	ADD	R2, R3		; next line
+	MOV	(R4)+, (R3)	; 3rd line
+	ADD	R2, R3		; next line
+	MOV	(R4)+, (R3)	; 4th line
+	ADD	R2, R3		; next line
 ; Continue the loop
 	SOB	R1, L9EAD1
 	RETURN
@@ -169,7 +170,7 @@ LA892:	PUSH	R1
 	MOVB	(R3), R4
 	BEQ	LA8B0		; empty tile? => skip it
 	CMP	R4, #107	; menu background tile?
-	BNE	LA8921
+	BNE	LA8921		; no => skip
 	CALL	LBC29		; add phase
 LA8921:	ADD	R4, R4
 	ADD	R4, R4
@@ -198,10 +199,77 @@ LA8C6:
 ;
 ; Draw Player tiles
 LA8CD:
-;TODO
-	RETURN
+	CLR	R1
+	MOVB	@#LDD55, R0	; get shooting flag
+	BEQ	LA8DF		; shooting animation? no => jump
+	MOV	#LDE87, R3	; Table with Player's tile numbers
+	MOV	@#LDB75, R0	; Direction/orientation
+	ADD	R0, R0
+	ADD	R0, R0		; now A = Direction * 4
+	BR	LA8E9
+LA8DF:
+	MOV	#LDE47, R3	; Table with Player's tile numbers
+	MOVB	@#LDB75, R0	; Direction/orientation
+	ADD	R0, R0
+	ADD	R0, R0
+	ADD	R0, R0
+	ADD	R0, R0		; now A = Direction * 16
+LA8E9:
+	ADD	R0, R3
+	MOVB	@#LDD54, R0
+	ADD	R0, R0
+	ADD	R0, R0		; now R0 = R0 * 4
+	ADD	R0, R3
+	MOV	#4, R1		; 4 tiles
+LA8F8:
+	PUSH	R3
+	MOVB	(R3), R3
+	ADD	R3, R3
+	ADD	R3, R3
+	ADD	R3, R3
+	ADD	R3, R3
+	ADD	R3, R3
+	ADD	R3, R3		; R3 = R3 * 64
+	ADD	#SPRITE, R3	; now R3 = sprite address
+
+	CALL	LA92E
+	PUSH	R1
+	CALL	LA956		; if looking left - set C bit7=1 to reflect tile horizontal
+	MOV	R1, R0
+	CALL	L9EDE		; Draw tile
+	POP	R1
+	POP	R3
+	INC	R3
+	SOB	R1, LA8F8	; continue loop by tiles
+	MOVB	@#LDD54, R0	; get animation phase 0..3
+	CMP	R0, #003	; was last phase?
+	BEQ	LA927		; yes => jump
+	INC	R0		; next phase
+	MOVB	R0, @#LDD54	; set animation phase
+	CLRB	@#LDD55		; clear shooting flag for player's animation
+	JMP	L9E19		; Go to ending of main game loop
+LA927:
+	CLRB	@#LDD54		; clear animation phase
+	JMP	L9E19		; Go to ending of main game loop
 ;
 LA92E:
+	INC	R1
+	MOVB	@#LDB76, R0	; get X coord in tiles
+	ADD	R0, R0		; now coord in 8px columns
+;TODO
+LA941:
+	MOVB	@#LDB75, R0	; Direction/orientation
+	CMPB	R0, #002	; left?
+	BEQ	LA94A
+	ADD	#2, R3		; right
+	RETURN
+LA94A:
+	SUB	#2, R3		; left
+	RETURN
+LA94C:
+;TODO
+;
+LA956:
 ;TODO
 	RETURN
 
@@ -549,7 +617,7 @@ LB96B:
 ;TODO
 	RETURN
 ;
-; Draw 5-digit number HL at row/col DE, and show the screen
+; Draw 5-digit number R3 at row/col R2, and show the screen
 LB97D:
 	MOV	R2, @#L86D7	; set penRow/penCol
 	CALL	DRNUM5
@@ -655,9 +723,48 @@ LBB09:	CLRB	(R3)+
 	MOV	#72., R1
 LBB17:	CLRB	(R3)+
 	SOB	R1, LBB17
+	MOV	#<DLLENT+1>, R3	;   ld hl,DoorLockLevelEntered+1
+	MOV	#4, R1
+LBADE5:	CLRB	(R3)+
+	SOB	R1, LBADE5
+	MOV	#LDC96, R3	; level 2 access code buffer
+	CALL	LBC6B		; Generate random code
+	MOV	#LDC9A, R3	; level 3 access code buffer
+	CALL	LBC6B		; Generate random code
+	MOV	#LDC9E, R3	; level 4 access code buffer
+	CALL	LBC6B		; Generate random code
+	CALL	LBC7D		; Clear shadow screen and copy to UKNC screen
+;TODO:	CALL	ScreenThemeNite	; switching to dark theme for story mode
+	MOVB	#68., @#LDC59	; set delay factor
+	MOVB	#1, @#LDC85	; Use delay and copy screen in LBEDE
+	MOVB	#14., @#LDCF4	; set Line interval for text
+	CLRB	@#LDCF3		; clear Left margin size for text
+	MOV	#35024, @#L86D7	; Set penRow/penCol
+	MOV	#SE115, R3	; "In the Distant Future . . ."
+	CALL	LBEDE		; Show message char-by-char
+	CALL	LBA81		; Delay x40
+	CALL	LBC7D		; Clear shadow screen and copy to UKNC screen
+	CALL	LBA81		; Delay x40
+	CLR	@#L86D7		; Set zero penRow/penCol
+	MOV	#SE117, R3	; "'The Desolate' Space Cruiser leaves orbit. ...
+	CALL	LBEDE		; Show message char-by-char
 
 ;TODO
 	RETURN
+
+;
+; Game start
+;
+LBB7E:
+	CLRB	@#LDC85		; Skip delay and copy screen in LBEDE
+; Continue menu item selected
+LBB82:
+	CALL	LBC7D		; Clear shadow screen and copy to UKNC screen
+;TODO:	CALL	ScreenThemeLite	; switching to light theme opening the game screen
+	MOVB	#001, @#LDB73
+	MOVB	#377, @#LDC59	; set delay factor
+	CALL	LB2D0		; Delay
+	JMP	L9DDD		; return to the main game loop
 
 ;
 ; Info menu item, show Controls
