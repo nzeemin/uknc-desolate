@@ -1,4 +1,49 @@
 
+; Game main loop
+;
+L9DDD:
+	MOVB	@#LDB7A, R0
+	BNE	L9DDD1
+	JMP	LB9A2
+L9DDD1:
+	CALL	LADE5		; Decode current room to LDBF5; HL = LDBF5
+	CALL	LA88F		; Display 96 tiles on the screen
+	CALL	LB96B		; Display Health
+	CALL	LB8EA		; Show look/shoot selection indicator
+	CALL	LB76B		; Process shoot
+	CALL	LB551		; Process Alien in the room
+	CALL	LA0F1		; Scan keyboard
+;TODO: Process keys
+	JMP	LA8C6		; Draw the Player, then go to the Ending of main game loop
+;
+; Ending of main game loop
+L9E19:
+	CALL	LB653		; Draw Alien
+	CALL	LA0F1		; Scan keyboard
+;TODO: Process keys
+; Show the screen, continue the game main loop
+L9E2E:
+	CALL	SHOWSC		; Copy shadow screen to UKNC screen
+	BR	L9DDD		; continue main game loop
+;
+; Quit menu item selected
+L9E51:
+;TODO
+	RETURN
+;
+; Put tile on the screen (NOT aligned to 8px column), 16x16 -> 16x16 on shadow screen
+; Uses XOR operation so it is revertable.
+;   R3 = row; R2 = X coord; R1 = height; R4 = tile address
+L9E5F:
+	ADD	R3, R3		; R3 = row * 2
+	ADD	R3, R3		; R3 = row * 4
+	MOV	R3, R0
+	ADD	R3, R3		; R3 = row * 8
+	ADD	R0, R3		; R3 = row * 12
+	ADD	R3, R3		; R3 = row * 24
+;TODO
+	RETURN
+;
 ; Put background tile on the screen, 16x16 -> 16x16 on shadow screen, no mask
 ;   R3 = row; R2 = tile column 0..11; R4 = tile address
 L9EAD:
@@ -22,11 +67,69 @@ L9EAD1:
 ; Continue the loop
 	SOB	R1, L9EAD1
 	RETURN
-
+;
+; Draw sprite
+;   R4 = sprite address; R2 = column; R3 = row
+;   R0 = (was: bits 0..5 - sub-sprite); bit7=1 - reflect horz (was: bit6=1 - reflect vert)
+L9EDE:
+; Copy the sprite to the buffer
+	MOV	#L9FAF, R5
+	MOV	#8., R1
+L9EDE1:	MOV	(R4)+, (R5)+
+	MOV	(R4)+, (R5)+
+	MOV	(R4)+, (R5)+
+	MOV	(R4)+, (R5)+
+	SOB	R1, L9EDE1
+; Reflect the bits if needed
+	BIT	#200, R0
+	BEQ	L9EDE2
+	CALL	L9EDER		; Reflect sprite horizontally
+L9EDE2:
+	ADD	R3, R3		; R3 = row * 2
+	ADD	R3, R3		; R3 = row * 4
+	MOV	R3, R0
+	ADD	R3, R3		; R3 = row * 8
+	ADD	R0, R3		; R3 = row * 12
+	ADD	R3, R3		; R3 = row * 24
+	ADD	R2, R3
+	ADD	#SHADOW, R3
+	MOV	#L9FAF, R4
+; Copying to the shadow screen
+	MOV	#8., R1		; 8 row pairs
+	MOV	#24., R2	; line increment
+L9EDE3:
+; 1st line
+	MOV	(R3), R0	; get shadow screen bits
+	BIC	(R4)+, R0	; apply mask
+	BIS	(R4)+, R0	; use pixels
+	MOV	R0, (R3)	; write the result
+	ADD	R2, R3		; next line
+; 2nd line
+	MOV	(R3), R0	; get shadow screen bits
+	BIC	(R4)+, R0	; apply mask
+	BIS	(R4)+, R0	; use pixels
+	MOV	R0, (R3)	; write the result
+	ADD	R2, R3		; next line
+; Contine the loop
+	SOB	R1, L9EDE3
+	RETURN
+L9FAF:
+	.BLKB	64.
+;
+; Horizontal reflection
+L9EDER:
+;TODO
+	RETURN
+;
+; Reflect byte bits of A
+FLIPBY:
+;TODO
+	RETURN
+;
 ; Copy shadow screen to UKNC screen
 ;
 L9FEA=SHOWSC
-
+;
 ; Clear shadow screen
 ; 128+10 lines, 24 8px columns; 24 * 138 = 3312 bytes
 CLSHAD:
@@ -51,9 +154,10 @@ L9FCF1:	CLR	(R3)+			; bytes 0-1
 ; Returns key in A; Z=0 for key, Z=1 for no key
 ;
 LA0F1:
+	CLR	R0	;STUB
 ;TODO
 	RETURN
-
+;
 ; Display 96 tiles on the screen with background tiles (Tileset1)
 ;   R3 = Address where the 96 tiles are placed
 LA88F:
@@ -90,13 +194,35 @@ LA8B0:	POP	R2
 	RETURN
 ;
 LA8C6:
-	CLR	@#LDD54			; clear animation phase
+	CLRB	@#LDD54			; clear animation phase
 ;
 ; Draw Player tiles
 LA8CD:
 ;TODO
 	RETURN
+;
+LA92E:
+;TODO
+	RETURN
 
+;
+; Get room offset in tiles for X = LDB76, Y = LDB78
+;   Returns the room offset in E, A, and LDC56
+LAA9D:
+;TODO
+	RETURN
+;
+; Look / Shoot key pressed
+LAAAF:
+;TODO
+	RETURN
+; Show the screen, continue the game main loop
+LAADA:
+	JMP	L9E2E		; Show the screen, continue the game main loop
+; Found the action point for the current position in the room description
+LAADD:
+;TODO
+	JMP	L9E2E		; Show the screen, continue the game main loop
 ;
 ; Show small message popup
 LAB28:
@@ -108,7 +234,98 @@ LAB28:
 	POP	R2
 	POP	R1
 	RETURN
-
+;
+; Found action point at room description offset $00..$01
+LAB3F:
+	RETURN
+;
+; Set penRow/penCol for small message popup
+LAB73:
+	MOV	#54020, @#L86D7	; Set penRow/penCol
+	RETURN
+;
+LAB7A:
+;TODO
+;
+; Found action point at room description offset $03..$04
+LABA4:
+;TODO
+;
+; Found action point at room description offset $19..$1A
+LABBE:
+;TODO
+;
+; Found action point at room description offset $21..$22 (possibly an error, should be $20-$21)
+LAC05:
+;TODO
+;
+; Compare byte at (HL+DE) with Direction/orientation LDB75
+;TODO
+;
+; Found action point at room description offset $06..$07
+LAC54:
+;TODO
+; Found dead body with some item on it
+LAC97:
+;TODO
+	JMP	LAD00
+;
+; Show arrow sign in bottom-right corner, as a prompt to continue
+LACB8:
+	MOV	#063260, @#L86D7	; Set penRow/penCol
+	MOV	#SE0B9, R3	; String with arrow down sign
+	JMP	LBEDE		; Show message char-by-char
+;
+; Small message popup "OMG! This Person Is DEAD! What Happened Here!?!"
+LACC5:
+	CALL	LAB28		; Show small message popup
+	CALL	LAB73		; Set penRow/penCol for small message popup
+	MOV	#SE0BF, R3
+	CALL	LBEDE		; Show message char-by-char
+	MOV	#63022, @#L86D7	; Set penRow/penCol
+	MOV	#SE0C1, R3	; "What Happened Here!?!"
+	CALL	LBEDE		; Show message char-by-char
+	CALL	LACB8		; Show arrow sign as prompt to continue
+	JMP	LAD00
+;
+; Found action point at room description offset $0B..$0C
+LACE3:
+;TODO
+;
+; Show screen, wait for any key, show small message popup
+LACF6:
+	CALL	SHOWSC		; Copy shadow screen to UKNC screen
+	CALL	WAITAN		; Wait any key
+	JMP	LAB28		; Show small message popup
+;
+LAD00:
+;TODO
+	RETURN
+;
+; Get inventory item flag for item number in LDC89
+LAD4F:
+;TODO
+;
+LAD5B:
+;TODO
+;
+; Show screen and wait for Escape key
+LAD8C:
+	CALL	SHOWSC		; Copy shadow screen to UKNC screen
+LAD8F:
+;TODO
+;
+; Wait for Escape key
+LADA1:
+	CALL	LA0F1		; Scan keyboard
+;TODO
+	RETURN
+;
+; We found the weapon
+LADA9:
+;TODO
+	RETURN
+;
 ; Decode current room to LDBF5
 ;   Returns: R3 = LDBF5
 LADE5:
@@ -144,7 +361,92 @@ LAE09:
 	CALL	LADFF		; Get address from table by index A
 	MOV	#49., R1	; decode 49 bytes
 	BR	LADF5		; Decode the room/screen to LDBF5
-
+;
+; Inventory item to item description string
+LAE19:
+	MOVB	@#LDC89, R0	; get current item number
+	MOV	#LDFB7, R3
+	JMP	LADFF		; Get address from table by index A, and return
+;
+; Check access and show Door Lock
+;   LDC8B - Access code slot number
+LAE23:
+;TODO
+; Door Lock loop starts here
+LAE80:
+;TODO
+; Delay and wait for key in Door Lock
+LAE99:
+;TODO
+; Door Lock Select key pressed
+LAEBA:
+;TODO
+	RETURN
+;
+; Access code entered, need to check
+LAF14:
+;TODO
+; Invalid Code
+LAF1D:
+;TODO
+; Validate the code entered
+LAF2C:
+;TODO
+	RETURN
+;
+; Draw selection box by XOR
+LAFD2:
+;TODO
+	RETURN
+;
+; LDC8C access code level -> address from LE015 table
+LAFEC:
+;TODO
+	RETURN
+;
+; LDC8C access code level -> message address from LE01F table
+LAFFE:
+;TODO
+	RETURN
+;
+; LDC8C access code level -> "access code was entered for this level before" flag address
+; Returns: HL = address
+; DoorLockGetEnteredFlagAddr:
+DRGEFA:
+;TODO
+	RETURN
+;
+; Going to the next room
+LB00E:
+;TODO
+	RETURN
+;
+; Decrease Health by 4, restore Y coord
+LB07B:
+	MOV	#2, R1
+LB07D:
+	CALL	LB994		; Decrease Health
+	SOB	R1, LB07D
+	POP	R0
+	MOVB	R0, @#LDB78	; set Y tile coord
+	POP	R0
+	MOVB	R0, @#LDB77	; set Y pixel coord
+	JMP	LA8CD
+;
+; Decrease Health by 4, restore X coord
+LB08D:
+	MOV	#2, R1
+LB08F:
+	CALL	LB994		; Decrease Health
+	SOB	R1, LB08F
+	POP	R0
+	MOVB	R0, @#LDB76
+	JMP	LA8CD
+;
+; Door Lock: Preparing to draw string with prompt/result
+LB09B:
+;TODO
+	RETURN
 ;
 ; Open the Inventory pop-up
 ;
@@ -169,7 +471,9 @@ LB0E0:				; loop by B
 ;TODO
 	RETURN
 
-LBC29:
+;
+; Draw tile by XOR using X = (LDC83), Y = (LDC84), then go to next position
+LB15D:
 ;TODO
 	RETURN
 
@@ -209,9 +513,76 @@ LB1771:	POP	R3		; restore tile address
 
 ; Delay by LDC59
 LB2D0:
+	MOVB	@#LDC59, R1
+LB2D00:
+
 ;TODO
 	RETURN
 
+;
+; Process alien in the room
+LB551:
+;TODO
+	RETURN
+
+LB653:
+;TODO
+	RETURN
+
+;
+; Process shoot within the game main loop
+;
+LB76B:
+;TODO
+	RETURN
+
+;
+; Show look/shoot selection indicator
+;
+LB8EA:
+;TODO
+	RETURN
+
+;
+; Display Health
+LB96B:
+;TODO
+	RETURN
+;
+; Draw 5-digit number HL at row/col DE, and show the screen
+LB97D:
+	MOV	R2, @#L86D7	; set penRow/penCol
+	CALL	DRNUM5
+	JMP	SHOWSC		; Copy shadow screen to ZX screen
+;
+; Decrease Health
+LB994:
+	MOVB	@#LDB7A, R0	; get Health
+	SUB	#2, R0		; Health = Health minus 2
+	BHIS	LB9941
+	CLR	R0
+LB9941:	MOVB	R0, @#LDB7A	; set Health
+; Set border to red as an indication of the injury
+;TODO: Indicate we had injures
+	RETURN
+;
+; Player is dead, Health 0
+;
+LB9A2:
+	CALL	CLSHAD		; Clear Shadow Screen
+;TODO
+	RETURN
+;
+; Clear player variables
+LB9D6:
+	CLRB	@#LDB79		; set the room number
+	CLRB	@#LDB75		; Direction/orientation
+	MOVB	#6, @#LDB76	; set X tile coord = 6
+	MOVB	#48., @#LDB77	; set Y pixel coord = 48
+	MOVB	#3, @#LDB78	; set Y tile coord = 3
+	MOV	#100.,@#LDB7A	; set Health = 100
+	RETURN
+;
 ; Decode the block from RLE sequence
 ;   R3 = address decode from (usually encoded room/screen)
 ;   R2 = address decode to
@@ -231,6 +602,115 @@ LB9F14:	DEC	R3
 	BEQ	LB9F11
 	SOB	R0, LB9F14
 	BR	LB9F1
+;
+; Show titles and show Menu
+LBA07:
+	MOVB	#68., @#LDC59	; set delay factor
+	MOVB	#1, @#LDC85	; Use delay and copy screen in LBEDE
+	MOV	#35036, @#L86D7	; Set penRow/penCol
+	MOV	#SE09D, R3	; "MaxCoderz Presents"
+	CALL	LBEDE		; Show message char-by-char
+	CALL	LBA81		; Delay x40
+	CALL	LBC7D		; Clear shadow screen and copy to UKNC screen
+	CALL	LBC34		; Delay x20
+	MOV	#35056, @#L86D7 ; Set penRow/penCol
+	MOV	#SE09F, R3	; "a tr1p1ea game"
+	CALL	LBEDE		; Show message char-by-char
+	CALL	LBA81		; Delay x40
+	CALL	LBC7D		; Clear shadow screen and copy to UKNC screen
+	CALL	LBC34		; Delay x20
+	CLRB	@#LDC85		; Skip delay and copy screen in LBEDE
+;TODO:	CALL	ScreenThemeLite	; switching to the light theme on Main Menu
+
+;TODO
+	RETURN
+
+LBA3D:
+;TODO
+	RETURN
+
+;
+; New Game
+;
+LBADE:
+	CLRB	@#LDCF7		; clear Weapon slot
+	CLRB	@#LDB7D		; set look/shoot switch value = Look
+	CLRB	@#LDBC7		; clear Items Found count
+	CALL	LB9D6		; Clear player variables
+	CLR	@#LDBC3		; clear Player deaths count
+	CLR	@#LDBC5		; clear Aliens Killed count
+	MOV	#LDB9C, R3	; Inventory table address
+	MOV	#34., R1	; 34 bytes
+LBAF9:	CLRB	(R3)+
+	SOB	R1, LBAF9
+	MOV	#LDC5B, R3
+	MOV	#34., R1
+LBB03:	CLRB	(R3)+
+	SOB	R1, LBB03
+	MOV	#LDB90, R3
+	MOV	#9., R1
+LBB09:	CLRB	(R3)+
+	SOB	R1, LBB09
+	MOV	#LDCA2, R3
+	MOV	#72., R1
+LBB17:	CLRB	(R3)+
+	SOB	R1, LBB17
+
+;TODO
+	RETURN
+
+;
+; Info menu item, show Controls
+;
+LBBEC:
+	MOV	#LF329, R3	; Decode from - Encoded screen for Inventory/Info popup
+	CALL	LADEE		; Decode 96 bytes of the screen to LDBF5
+	CALL	LB177		; Display screen HL from tiles with Tileset 2
+	MOVB	#10., @#LDCF3	; Left margin size for text
+	MOVB	#14., @#LDCF4	; Line interval for text
+	MOV	#013074, @#L86D7  ; Set penRow/penCol
+	MOV	#SE0A5, R3	; "- Controls -"
+	CALL	DRSTR		; Show message char-by-char
+	MOV	#022012, @#L86D7  ; Set penRow/penCol
+	MOV	#SE0A7, R3	; "2nd = Look / Shoot Alpha = Inventory ..."
+	CALL	LBEDE		; Show message char-by-char
+	CALL	SHOWSC		; Copy shadow screen to UKNC screen
+	CALL	LADA1		; Wait for Escape key
+	JMP	LBA3D		; Return to Menu
+;
+; Add menu background phase 0..7 to R3
+LBC29:
+	MOVB	@#LDC55, R0
+	ADD	R0, R3
+	RETURN
+;
+; Delay x40
+LBA81:
+	CALL	LBC34		; Delay x20
+; Delay x20
+LBC34:
+	MOV	#20., R1	; x20
+LBC36:
+	CALL	LB2D0		; Delay
+	SOB	R1, LBC36
+	RETURN
+;
+; Draw access code, 4 chars
+;   HL = access code buffer address
+LBC3C:
+;TODO
+	RETURN
+;
+; Generate random access code
+;   HL = 4-byte buffer address
+LBC6B:
+;TODO
+	RETURN
+;
+; Clear shadow screen and copy to UKNC screen
+LBC7D:
+	CALL	CLSHAD		; Clear shadow screen
+	JMP	SHOWSC		; Copy shadow screen to UKNC screen
 
 ; Draw string on the screen
 ;   R3 = String address
@@ -260,3 +740,83 @@ LBF1B:					; Line end
 	BR	LBEDE
 
 	RETURN
+;
+; Set variables for Credits
+LBF54:
+	CLRB	@#LDD57		; clear Credits line number
+	CLRB	@#LDD56		; clear Credits counter within one line
+	CLRB	@#LDC85		; Skip delay and copy screen in LBEDE
+	MOVB	#150., @#LDC59	; set delay factor
+	RETURN
+;
+; Credits menu item selected
+LBF64:
+	CALL	LBC7D		; Clear and show shadow screen
+;TODO:	CALL	ScreenThemeNite	; switching to dark theme for Credits
+	CALL	LBF54		; Set variables for Credits
+	JMP	LBF81		; Credits screen text scrolls up
+;
+; The End
+;
+LBF6F:
+	CALL	LBC7D		; Clear and show shadow screen
+;TODO:	CALL	ScreenThemeNite	; switching to dark theme for End and Credits
+	CALL	LBF54		; Set variables for Credits
+	MOV	#027106, @#L86D7	; Set penRow/penCol
+	MOV	#SE11F, R3	; "The End"
+	CALL	LBEDE		; Show message char-by-char
+;
+; Credits screen text scrolls up
+;
+LBF81:
+	MOVB	#126., @#L86D8	; Set penRow, to draw new strings on the very bottom
+LBF686:
+	BR	LBF6F4
+LBF6F2:
+	CALL	SHOWSC		; Copy shadow screen to ZX screen
+LBF6F3:
+	CALL	LA0F1		; Scan keyboard
+	BNE	CREXIT		; any key pressed => Return to main Menu
+	CALL	LBFD5		; Scroll shadow screen up one line
+LBF6F4:
+	MOVB	@#LDD56, R0
+	INC	R0		; increase counter within the line
+	MOVB	R0, @#LDD56
+	CMP	R0, #12.	; last line of the current string?
+	BEQ	CREDS5		; yes => jump
+	CALL	LB2D0		; Delay
+	BR	LBF6F2		; continue the Credits loop
+CREDS5:
+	CLRB	@#LDD56		; clear counter within the line
+	MOVB	@#LDD57, R2
+	ADD	#LDDF2, R2	; Table of left margins for Credits strings
+	MOVB	(R2), @#L86D7	; Set penCol
+	MOVB	@#LDD57, R0	; get Credits line number
+	MOV	#LDD58, R3	; Table of Credits strings
+	CALL	LADFF		; Get address from table HL by index A
+	CALL	DRSTR		; Draw string on shadow screen without any delays
+	MOVB	@#LDD57, R0
+	INC	R0		; increase the Credits line counter
+	MOVB	R0, @#LDD57
+	CMP	R0, #73.
+	BNE	LBF6F3
+	CALL	LBA81		; Delay x40 - added to have a pause after the last line
+CREXIT:
+	CALL	LBC7D		; Clear and show shadow screen
+;TODO:	CALL	ScreenThemeLite	; switching to light theme for Main Menu
+	JMP	LBA3D		; Return to main Menu
+;
+; Scroll shadow screen up 1px
+LBFD5:
+	MOV	#SHADOW, R2
+	MOV	#<SHADOW+24.>, R3
+	MOV	#411., R1	; 137 * 24 / 8 = 411.
+LBFD51:
+	MOV	(R3)+, (R2)+
+	MOV	(R3)+, (R2)+
+	MOV	(R3)+, (R2)+
+	MOV	(R3)+, (R2)+
+	SOB	R1, LBFD51
+	RETURN
+
+;----------------------------------------------------------------------------

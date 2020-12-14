@@ -804,6 +804,7 @@ LDDF2:			; Table of left margins for Credits strings
 	.BYTE	000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000
 	.BYTE	000,000,000,000,000,000,030,050
 
+	.EVEN
 ;
 ; List of encoded room addresses, for 72 rooms
 LDE97:

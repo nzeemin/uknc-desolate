@@ -41,24 +41,8 @@ START::
 	CALL	LB177			; Display screen from tiles with Tileset2
 	CALL	CTITLE
 	CALL	CLSHAD			; очистка теневого экрана
-
-;	CLR	@#L86D7
-;	MOV	#SE117, R3
-;	CALL	LBEDE			; печать строки с задержками
-
-;	MOV	#LF468, R3		; Decode from
-;	MOV	#96., R1
-;	MOV	#LDBF5, R2		; Decode screen to
-;	CALL	LB9F1			; Decode
-;	MOV	#LDBF5, R3
-;	CALL	LB177			; отрисовать экран из тайлов
-
-;	MOV	#LBFF8, R3		; Decode from Room #0
-;	MOV	#96., R1
-;	MOV	#LDBF5, R2		; Decode screen to
-;	CALL	LB9F1			; Decode
-;	MOV	#LDBF5, R3
-;	CALL	LA88F			; отрисовать экран из тайлов
+; Запуск
+;	CALL	LBA07			; Show titles and go to Menu
 
 ;	MOV	#0, R3
 ;	MOV	#0, R2
@@ -69,18 +53,21 @@ START::
 ;	MOV	#<TILES1+60*40>, R4
 ;	CALL	L9EAD
 
-;	MOV	#, R3
-;	MOV	#LDBF5, R2
-;	CALL	LB9F1
+;	MOV	#LBFF8, R3
+;	CALL	LADEE		; Decode 96 bytes to LDBF5
+;	CALL	LA88F		; Display 96 tiles on the screen
 
-;	MOVB	#0, @#L86D7
-;	MOVB	#14., @#L86D8
-;	MOV	#STR, R3
-;	CALL	DRSTR
+;	CALL	LB0A2		; Inventory
+;	CALL	LBBEC		; Info menu item, show Controls
+;	CALL	LBF6F		; The End
 
-;	CALL	LAB28			; Small message popup
+	MOV	#SPRITE, R4
+	MOV	#0, R2
+	MOV	#0, R3
+	CLR	R0
+	CALL	L9EDE
 
-	CALL	LB0A2			; Inventory
+;	CALL	LAB28		; Small message popup
 
 	CALL	SHOWSC
 
@@ -92,10 +79,6 @@ FINISH:
 	MOV	#EXITSC, R1	; Строка очистки экрана перед выходом
 	CALL	PRINT
 	.EXIT
-
-STR:
-	.ASCIZ	/abcdefghijklmnopqrstuvw/<25><25>
-
 
 GAMESC:	; Строка подготовки игрового экрана
 	.BYTE	33,246,62	; Формат экрана 40x24
@@ -154,6 +137,16 @@ GETKEY:	TSTB	@#177560	; есть символ?
 
 ;------------------------------------------------------------------------------
 
+; Wait for any key
+WAITAN:
+;TODO
+	RETURN
+
+; Wait until no key pressed - to put after ReadKeyboard calls to prevent double-reads of the same key
+WAITUP:
+;TODO
+	RETURN
+
 ; Get shadow screen address using penCol in L86D7
 ;   R0 = row 0..137
 ;   (L86D7) = penCol 0..191
@@ -181,37 +174,20 @@ DRTIL2:
 	MOV	R2, @#L86D7	; penCol
 	CALL	GSADDR		; now R3 = screen addr
 	MOV	#8., R1		; 8 row pairs
+	MOV	#24., R2	; line increment
 DRTILA:
 ; 1st line first byte
-	MOVB	(R4)+, R0	; get bits
-	MOVB	(R3), R2	; get shadow screen bits
-	COM	R2
-	BICB	R2, R0
-	BISB	(R4)+, R0	; apply the mask
-	MOVB	R0, (R3)+	; write the result, next col
-; 1st line second byte
-	MOVB	(R4)+, R0	; get bits
-	MOVB	(R3), R2	; get shadow screen bits
-	COM	R2
-	BICB	R2, R0
-	BISB	(R4)+, R0	; apply the mask
-	MOVB	R0, (R3)	; write the result
-	ADD	#<24.-1>, R3
+	MOV	(R3), R0	; get shadow screen bits
+	BIC	(R4)+, R0	; apply mask
+	BIS	(R4)+, R0	; use pixels
+	MOV	R0, (R3)	; write the result
+	ADD	R2, R3		; next line
 ; 2nd line first byte
-	MOVB	(R4)+, R0	; get bits
-	MOVB	(R3), R2	; get shadow screen bits
-	COM	R2
-	BICB	R2, R0
-	BISB	(R4)+, R0	; apply the mask
-	MOVB	R0, (R3)+	; write the result, next col
-; 2nd line second byte
-	MOVB	(R4)+, R0	; get bits
-	MOVB	(R3), R2	; get shadow screen bits
-	COM	R2
-	BICB	R2, R0
-	BISB	(R4)+, R0	; apply the mask
-	MOVB	R0, (R3)	; write the result
-	ADD	#<24.-1>, R3
+	MOV	(R3), R0	; get shadow screen bits
+	BIC	(R4)+, R0	; apply mask
+	BIS	(R4)+, R0	; use pixels
+	MOV	R0, (R3)	; write the result
+	ADD	R2, R3		; next line
 ; Contine the loop
 	SOB	R1, DRTILA
 	RETURN
