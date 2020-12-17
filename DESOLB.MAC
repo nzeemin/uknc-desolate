@@ -13,7 +13,21 @@ L9DDD1:
 	CALL	LB76B		; Process shoot
 	CALL	LB551		; Process Alien in the room
 	CALL	LA0F1		; Scan keyboard
-;TODO: Process keys
+; Process keys
+	CMP	R0, #004	; Up key?
+	BNE	L9DDD3
+	JMP	LA99B
+L9DDD3:	CMP	R0, #001	; Down key?
+	BNE	L9DDD4
+	JMP	LA966
+L9DDD4:	CMP	R0, #002	; Left key?
+	BNE	L9DDD5
+	JMP	LA9EB
+L9DDD5:	CMP	R0, #003	; Right key?
+	BNE	L9DDD6
+	JMP	LAA1A
+;TODO: Menu key
+L9DDD6:
 	JMP	LA8C6		; Draw the Player, then go to the Ending of main game loop
 ;
 ; Ending of main game loop
@@ -153,9 +167,9 @@ L9EDES:
 L9FEA=SHOWSC
 ;
 ; Clear shadow screen
-; 128+10 lines, 24 8px columns; 24 * 138 = 3312 bytes
+; 128+12 lines, 24 8px columns; 24 * 140 = 3360 bytes
 CLSHAD:
-L9FCF:	MOV	#138., R1		; 24 * 138 = 3312
+L9FCF:	MOV	#140., R1		; line count
 	MOV	#SHADOW, R3
 L9FCF1:	CLR	(R3)+			; bytes 0-1
 	CLR	(R3)+			; 2-3
@@ -176,9 +190,33 @@ L9FCF1:	CLR	(R3)+			; bytes 0-1
 ; Returns key in A; Z=0 for key, Z=1 for no key
 ;
 LA0F1:
-	CLR	R0	;STUB
-;TODO
+	CALL	GETKEY
+	BEQ	LA0F1R		; No key => RETURN
+; Анализ нажатой клавиши
+;TODO: Look/shoot
+	CMP	#15502, R0	; Клавиша вниз?
+	BNE	LA0F12
+	MOV	#001, R0
 	RETURN
+LA0F12:	CMP	#15504, R0	; Клавиша влево?
+	BNE	LA0F13
+	MOV	#002, R0
+	RETURN
+LA0F13:	CMP	#15503, R0	; Клавиша вправо?
+	BNE	LA0F14
+	MOV	#003, R0
+	RETURN
+LA0F14:	CMP	#15501, R0	; Клавиша вверх?
+	BNE	LA0F15
+	MOV	#004, R0
+	RETURN
+LA0F15:
+;TODO: Escape
+;TODO: Inventory
+;TODO: Menu
+
+	CLR	R0
+LA0F1R:	RETURN
 ;
 ; Display 96 tiles on the screen with background tiles (Tileset1)
 ;   R3 = Address where the 96 tiles are placed
@@ -221,13 +259,12 @@ LA8C6:
 ;
 ; Draw Player tiles
 LA8CD:
-	CLR	R1
 	MOVB	@#LDD55, R0	; get shooting flag
 	BEQ	LA8DF		; shooting animation? no => jump
 	MOV	#LDE87, R3	; Table with Player's tile numbers
 	MOV	@#LDB75, R0	; Direction/orientation
 	ADD	R0, R0
-	ADD	R0, R0		; now A = Direction * 4
+	ADD	R0, R0		; now R0 = Direction * 4
 	BR	LA8E9
 LA8DF:
 	MOV	#LDE47, R3	; Table with Player's tile numbers
@@ -235,24 +272,24 @@ LA8DF:
 	ADD	R0, R0
 	ADD	R0, R0
 	ADD	R0, R0
-	ADD	R0, R0		; now A = Direction * 16
+	ADD	R0, R0		; now R0 = Direction * 16
 LA8E9:
 	ADD	R0, R3
-	MOVB	@#LDD54, R0
+	MOVB	@#LDD54, R0	; get animation phase
 	ADD	R0, R0
-	ADD	R0, R0		; now R0 = R0 * 4
+	ADD	R0, R0		; now R0 = phase * 4
 	ADD	R0, R3
-	MOV	#4, R1		; 4 tiles
-LA8F8:				; loop by B
+	MOV	#4, R1		; 4 sprites
+LA8F8:				; loop by R1
+	MOVB	(R3)+, R4	; get sprite number
 	PUSH	R3
-	MOVB	(R3), R4	; get sprite number
 	ADD	R4, R4
 	ADD	R4, R4
 	ADD	R4, R4
 	ADD	R4, R4
 	ADD	R4, R4
 	ADD	R4, R4		; R4 = sprite * 64
-	ADD	#SPRITE, R4	; now R3 = sprite address
+	ADD	#SPRITE, R4	; now R4 = sprite address
 	CALL	LA92E
 	PUSH	R1
 	CALL	LA956		; if looking left - set C bit7=1 to reflect tile horizontal
@@ -260,7 +297,6 @@ LA8F8:				; loop by B
 	CALL	L9EDE		; Draw sprite R4; R2 = column; R3 = row
 	POP	R1
 	POP	R3
-	INC	R3
 	SOB	R1, LA8F8	; continue loop by tiles
 	MOVB	@#LDD54, R0	; get animation phase 0..3
 	CMP	R0, #003	; was last phase?
@@ -274,31 +310,182 @@ LA927:
 	JMP	L9E19		; Go to ending of main game loop
 ;
 LA92E:
-	INC	R1
-	MOVB	@#LDB76, R0	; get X coord in tiles
-	ADD	R0, R0		; now coord in 8px columns
-;TODO
+	MOVB	@#LDB76, R2	; get X coord in tiles 0..11
+	ADD	R2, R2		; now coord in 8px columns
+	MOVB	@#LDB77, R3	; get Y coord in lines
+	SUB	#16., R3
+	CMP	R1, #4		; sprite #1?
+	BEQ	LA949		; yes => RETURN
+	CMP	R1, #3		; sprite #2?
+	BNE	LA94C		;
 LA941:
 	MOVB	@#LDB75, R0	; Direction/orientation
 	CMPB	R0, #002	; left?
 	BEQ	LA94A
-	ADD	#2, R3		; right
-	RETURN
+	ADD	#2, R2		; right
+LA949:	RETURN
 LA94A:
-	SUB	#2, R3		; left
+	SUB	#2, R2		; left
 	RETURN
 LA94C:
-;TODO
+	ADD	#16., R3
+	CMP	R1, #1		; sprite #4?
+	BEQ	LA941
+	RETURN
 ;
 LA956:
-;TODO
-	RETURN
+	CLR	R1
+	MOVB	@#LDB75, R0	; Direction/orientation
+	BEQ	LA956R
+	CMP	R0, #001
+	BEQ	LA956R
+	CMP	R0, #003
+	BEQ	LA956R
+	MOV	#200, R1
+LA956R:	RETURN
 
 ;
-; Get room offset in tiles for X = LDB76, Y = LDB78
-;   Returns the room offset in E, A, and LDC56
-LAA9D:
+; Move Down
+LA966:
+	TSTB	@#LDB75		; Direction/orientation
+	BEQ	LA97C
+	TSTB	@#LDB7D		; look/shoot switch
+	BEQ	LA97C		; look mode => jump
+	CLRB	@#LDB75		; set Direction/orientation = down
+	JMP	LA8C6		; Proceed to Draw the Player
+LA97C:
+	CLRB	@#LDB75		; set Direction/orientation = down
+	CALL	LAA60
+	CMP	R0, #001
+;TODO:	JP NZ,LA8CD
+	MOVB	@#LDB77, R0	; get Y pixel coord
+	PUSH	R0
+	ADD	#16., R0	; Down one tile
+	MOVB	R0, @#LDB77	; set Y pixel coord
+	MOVB	@#LDB78, R0	; get Y tile coord
+	PUSH	R0
+	INC	R0		; down one tile
+	MOVB	R0, @#LDB78	; set Y tile coord
+	BR 	LA9D1
+;
+; Move Up
+LA99B:
+	MOVB	@#LDB75, R0	; Direction/orientation
+	CMP	R0, #001	; up?
+	BEQ	LA9B3
+	TSTB	@#LDB7D		; look/shoot switch
+	BEQ	LA9B3		; look mode => jump
+	MOVB	#001, @#LDB75	; set Direction/orientation = up
+	JMP	LA8C6		; Proceed to Draw the Player
+LA9B3:
+	MOVB	#001, @#LDB75	; set Direction/orientation = up
+	CALL	LAA60
+	CMP	R0, #001
+;TODO:	JP NZ,LA8CD
+	MOVB	@#LDB77, R0	; get Y pixel coord
+	PUSH	R0
+	SUB	#16., R0	; Up one tile
+	MOVB	R0, @#LDB77	; set Y pixel coord
+	MOVB	@#LDB78, R0	; get Y tile coord
+	PUSH	R0
+	DEC	R0		; up one tile
+	MOVB	R0, @#LDB78	; set Y tile coord
+; Moved down or up, check for Alien
+LA9D1:
 ;TODO
+	POP	R0
+	POP	R0
+	JMP	LA8CD
+;
+; Move Left
+LA9EB:
+	MOVB	@#LDB75, R0	; Direction/orientation
+	CMP	R0, #002	; up?
+	BEQ	LAA03
+	TSTB	@#LDB7D		; look/shoot switch
+	BEQ	LAA03		; look mode => jump
+	MOVB	#002, @#LDB75	; set Direction/orientation = left
+	JMP	LA8C6		; Proceed to Draw the Player
+LAA03:
+	MOVB	#002, @#LDB75	; set Direction/orientation = left
+	CALL	LAA60
+	CMP	R0, #001
+;TODO:	JP NZ,LA8CD
+	MOVB	@#LDB76, R0	; get X coord in tiles
+	PUSH	R0
+	DEC	R0		; one tile left
+	MOVB	R0, @#LDB76	; set X coord in tiles
+	BR	LAA47		; go to Alien check
+;
+; Move Right
+LAA1A:
+	MOVB	@#LDB75, R0	; Direction/orientation
+	CMP	R0, #003	; up?
+	BEQ	LAA32
+	TSTB	@#LDB7D		; look/shoot switch
+	BEQ	LAA32		; look mode => jump
+	MOVB	#003, @#LDB75	; set Direction/orientation = right
+	JMP	LA8C6		; Proceed to Draw the Player
+LAA32:
+	MOVB	#003, @#LDB75	; set Direction/orientation = right
+	CALL	LAA60
+	CMP	R0, #001
+;TODO:	JP NZ,LA8CD
+	MOVB	@#LDB76, R0	; get X coord in tiles
+	PUSH	R0
+	INC	R0		; one tile right
+	MOVB	R0, @#LDB76	; set X coord in tiles
+; Moved left or right, check for Alien
+LAA47:
+;TODO
+
+LAA5C:
+	POP	R0
+	JMP	LA8CD
+;
+LAA60:
+	CALL	LADE5		; Decode current room to LDBF5; R3 = LDBF5
+	MOVB	@#LDB76, R2	; get X coord in tiles
+	CALL	LAA7D		; For direction left - dec R2, right - inc R2
+	ADD	R2, R3
+	MOVB	@#LDB78, R1	; Get Y tile coord
+	CALL	LAA8D		; For direction up - dec R1, down - inc R1
+	MOVB	MUL12D(R1), R1	; multiply by 12
+	ADD	R1, R3		; now R3 = address in the room descripton
+	RETURN
+;
+; For direction left - dec R2, right - inc R2
+LAA7D:
+	MOVB	@#LDB75, R0	; Direction/orientation
+	BEQ	LAA7DR		; down? => RETURN
+	CMP	R0, #001	; up?
+	BEQ	LAA7DR		; RETURN
+	CMP	R0, #002	; left?
+	BNE	LAA8B
+	DEC	R2		; going left 1 tile
+	RETURN
+LAA8B:	INC	R2		; going right 1 tile
+LAA7DR:	RETURN
+;
+; For direction up - dec R1, down - inc R1
+LAA8D:
+	MOVB	@#LDB75, R0	; Direction/orientation
+	BNE	LAA8D1		; down?
+	INC	R1		; going down 1 tile
+	RETURN
+LAA8D1:	CMP	R0, #001	; up?
+	BNE	LAA8DR
+	DEC	R1		; going up 1 tile
+LAA8DR:	RETURN
+;
+; Get room offset in tiles for X = LDB76, Y = LDB78
+;   Returns the room offset in R0 and LDC56
+LAA9D:
+	MOVB	@#LDB78, R0	; get Y tile coord
+	MOVB	MUL12D(R0), R0	; multiply by 12
+	MOVB	@#LDB76, R2	; get X tile coord 0..11
+	ADD	R2, R0
+	MOVB	R0, @#LDC56	; (LDC56) = Y * 12 + X
 	RETURN
 ;
 ; Look / Shoot key pressed
@@ -436,6 +623,7 @@ LADF5:
 ; Get address from table
 ;   R0 = Element number
 ;   R3 = Table address
+;TODO: Replace CALL LADFF to intermediate commands
 LADFF:
 	ADD	R0, R0
 	ADD	R0, R3
@@ -453,9 +641,10 @@ LAE09:
 ;
 ; Inventory item to item description string
 LAE19:
-	MOVB	@#LDC89, R0	; get current item number
-	MOV	#LDFB7, R3
-	JMP	LADFF		; Get address from table by index A, and return
+	MOVB	@#LDC89, R3	; get current item number
+	ADD	R3, R3
+	MOV	LDFB7(R3), R3	; Get address from table LDFB7 by index
+	RETURN
 ;
 ; Check access and show Door Lock
 ;   LDC8B - Access code slot number
@@ -635,7 +824,10 @@ LB8EA:
 ;
 ; Display Health
 LB96B:
-;TODO
+;TODO: ;DEBUG: Show room number at the bottom-left
+	MOV	#454, @#L86D7	; Set penRow/penCol
+	MOV	@#LDB7A, R3	; get Health value
+	JMP	DRNUM3		; Show 3-digit decimal number R3
 	RETURN
 ;
 ; Draw 5-digit number R3 at row/col R2, and show the screen
@@ -954,7 +1146,7 @@ CREXIT:
 LBFD5:
 	MOV	#SHADOW, R2
 	MOV	#<SHADOW+24.>, R3
-	MOV	#411., R1	; 137 * 24 / 8 = 411.
+	MOV	#414., R1	; 138 * 24 / 8 = 414.
 LBFD51:
 	MOV	(R3)+, (R2)+
 	MOV	(R3)+, (R2)+

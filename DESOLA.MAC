@@ -42,7 +42,7 @@ START::
 	CALL	CTITLE
 	CALL	CLSHAD			; очистка теневого экрана
 ; Запуск
-	CALL	LBA07			; Show titles and go to Menu
+;	CALL	LBA07			; Show titles and go to Menu
 
 ;	MOV	#LBFF8, R3	; Room #0
 ;	CALL	LADEE		; Decode 96 bytes to LDBF5
@@ -51,8 +51,15 @@ START::
 ;	CALL	LB0A2		; Inventory
 ;	CALL	LBBEC		; Info menu item, show Controls
 ;	CALL	LBADE		; New game
-;	CALL	LBB7E		; Game start
+	CALL	LBB7E		; Game start
 ;	CALL	LBF6F		; The End
+;	CALL	LBF81		; Credits
+
+;	CLRB	@#L86D7		; penCol
+;	MOV	#138., R0
+;	CALL	GSADDR
+;	CLR	@#L86D7
+;	CALL	DRNUM5
 
 ;	MOV	#SPRITE, R4
 ;	MOV	#0, R2
@@ -147,12 +154,17 @@ WAITUP:
 	RETURN
 ;
 ; Get shadow screen address using penCol in L86D7
-;   R0 = row 0..137
+;   R0 = row 0..139
 ;   (L86D7) = penCol 0..191
 ; Returns R3 = address
 GSADDR:
-	ADD	R0, R0
-	MOV	MUL24D(R0), R3	; R3 = row * 24
+	ASL	R0
+	MOV	R0, R3
+	ASL	R3		; now R3 = row * 4
+	ADD	R0, R3		; now R3 = row * 6
+	ASL	R3		; now R3 = row * 12
+	ASL	R3		; now R3 = row * 24
+;	MOV	MUL24D(R0), R3	; R3 = row * 24
 	ADD	#SHADOW, R3
 	MOVB	@#L86D7, R0	; get penCol
 	BIC	#177400, R0
@@ -442,10 +454,10 @@ CLBLK2: CLRB	(R4)+
 ;------------------------------------------------------------------------------
 
 	.EVEN
-; Shadow screen, 192 x 138 pixels
-;   12*2*(64*2+10) = 3312 bytes
+; Shadow screen, 192 x 140 pixels
+;   12*2*(64*2+12) = 3360 bytes
 SHADOW::
-	.BLKB	3312.
+	.BLKB	3360.
 
 ;------------------------------------------------------------------------------
 
