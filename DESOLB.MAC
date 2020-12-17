@@ -2,9 +2,9 @@
 ; Game main loop
 ;
 L9DDD:
-	MOVB	@#LDB7A, R0
+	MOVB	@#LDB7A, R0	; Get Health
 	BNE	L9DDD1
-	JMP	LB9A2
+	JMP	LB9A2		; zero => Player is dead
 L9DDD1:
 	CALL	LADE5		; Decode current room to LDBF5; HL = LDBF5
 	CALL	LA88F		; Display 96 tiles on the screen
@@ -35,25 +35,39 @@ L9E51:
 ; Uses XOR operation so it is revertable.
 ;   R3 = row; R2 = X coord; R1 = height; R4 = tile address
 L9E5F:
-	ADD	R3, R3		; R3 = row * 2
-	ADD	R3, R3		; R3 = row * 4
-	MOV	R3, R0
-	ADD	R3, R3		; R3 = row * 8
-	ADD	R0, R3		; R3 = row * 12
-	ADD	R3, R3		; R3 = row * 24
-;TODO
+	ADD	R3, R3
+	MOV	MUL24D(R3), R3	; R3 = row * 24
+	MOV	R2, R0		; get X coord, pixels
+	BIC	#177770, R0	; offset within 8px column, 0..7
+	ASR	R2
+	ASR	R2
+	ASR	R2		; R2 = number of 8px column
+	ADD	R2, R3		; now R3 = offset on the shadow screen
+	ADD	#SHADOW, R3	; R3 = address in the shadow screen
+L9E8D:				; loop by R1 - by rows
+	PUSH	R1
+	MOV	(R4)+, R0	; get tile bits
+	CLR	R2
+	MOV	R5, R1		; get shift
+	BEQ	L9E9D		; shift 0 => skip all shift ops
+L9E96:				; shift bits
+	ASR	R0
+	RORB	R2
+	SOB	R1, L9E96
+L9E9D:
+;TODO: put with XOR on the screen
+	POP	R1
+	SOB	R1, L9E8D	; continue loop by rows
 	RETURN
 ;
 ; Put background tile on the screen, 16x16 -> 16x16 on shadow screen, no mask
 ;   R3 = row; R2 = tile column 0..11; R4 = tile address
 L9EAD:
-	ADD	R2, R2
-	ADD	R2, R2
-	ADD	R2, R2
-	ADD	R2, R2
-	MOVB	R2, @#L86D7	; penCol
-	MOV	R3, R0		; penRow
-	CALL	GSADDR		; now R3 = screen addr
+	ADD	R3, R3
+	MOV	MUL24D(R3), R3	; R3 = row * 24
+	ADD	R2, R3
+	ADD	R2, R3
+	ADD	#SHADOW, R3	; now R3 = shadow screen address
 	MOV	#4., R1		; 4 * 4 = 16. rows
 	MOV	#24., R2	; line increment
 L9EAD1:
@@ -86,12 +100,8 @@ L9EDE1:	MOV	(R4)+, (R5)+
 	BEQ	L9EDE2
 	CALL	L9EDER		; Reflect sprite horizontally
 L9EDE2:
-	ADD	R3, R3		; R3 = row * 2
-	ADD	R3, R3		; R3 = row * 4
-	MOV	R3, R0
-	ADD	R3, R3		; R3 = row * 8
-	ADD	R0, R3		; R3 = row * 12
-	ADD	R3, R3		; R3 = row * 24
+	ADD	R3, R3
+	MOV	MUL24D(R3), R3	; R3 = row * 24
 	ADD	R2, R3
 	ADD	#SHADOW, R3
 	MOV	#L9FAF, R4
@@ -119,12 +129,23 @@ L9FAF:
 ;
 ; Horizontal reflection
 L9EDER:
-;TODO
-	RETURN
-;
-; Reflect byte bits of A
-FLIPBY:
-;TODO
+	MOV	#L9FAF, R5
+	MOV	#32., R4
+L9EDES:
+; ќбмен€ть мл/ст байты слова (R5), отразив оба байта
+	MOV	(R5), R0
+	MOV	R0, R1
+	BIC	#177400, R0		; оставл€ем мл байт
+	MOVB	FLIPAR(R0), R0		; отражаем байт через таблицу
+	BIC	#177400, R0		; убираем возможное расширение знака
+	SWAB	R1
+	BIC	#177400, R1		; оставл€ем мл байт
+	MOVB	FLIPAR(R1), R1		; отражаем байт через таблицу
+	SWAB	R0
+	BISB	R1, R0
+	MOV	R0, (R5)+		; записываем результат и к следующему слову
+; ѕродолжение цикла
+	SOB	R4, L9EDES
 	RETURN
 ;
 ; Copy shadow screen to UKNC screen
@@ -171,7 +192,7 @@ LA892:	PUSH	R1
 	BEQ	LA8B0		; empty tile? => skip it
 	CMP	R4, #107	; menu background tile?
 	BNE	LA8921		; no => skip
-	CALL	LBC29		; add phase
+LA88F2:	ADD	#000, R4	; add phase 000..007
 LA8921:	ADD	R4, R4
 	ADD	R4, R4
 	ADD	R4, R4
@@ -193,6 +214,7 @@ LA8B0:	POP	R2
 	CMPB	#128., R2	; was last tile row?
 	BNE	LA892		; no => continue the loop
 	RETURN
+LDC55=LA88F2+2		; Menu background phase: 000..007
 ;
 LA8C6:
 	CLRB	@#LDD54			; clear animation phase
@@ -221,22 +243,21 @@ LA8E9:
 	ADD	R0, R0		; now R0 = R0 * 4
 	ADD	R0, R3
 	MOV	#4, R1		; 4 tiles
-LA8F8:
+LA8F8:				; loop by B
 	PUSH	R3
-	MOVB	(R3), R3
-	ADD	R3, R3
-	ADD	R3, R3
-	ADD	R3, R3
-	ADD	R3, R3
-	ADD	R3, R3
-	ADD	R3, R3		; R3 = R3 * 64
-	ADD	#SPRITE, R3	; now R3 = sprite address
-
+	MOVB	(R3), R4	; get sprite number
+	ADD	R4, R4
+	ADD	R4, R4
+	ADD	R4, R4
+	ADD	R4, R4
+	ADD	R4, R4
+	ADD	R4, R4		; R4 = sprite * 64
+	ADD	#SPRITE, R4	; now R3 = sprite address
 	CALL	LA92E
 	PUSH	R1
 	CALL	LA956		; if looking left - set C bit7=1 to reflect tile horizontal
 	MOV	R1, R0
-	CALL	L9EDE		; Draw tile
+	CALL	L9EDE		; Draw sprite R4; R2 = column; R3 = row
 	POP	R1
 	POP	R3
 	INC	R3
@@ -581,7 +602,7 @@ LB1771:	POP	R3		; restore tile address
 
 ; Delay by LDC59
 LB2D0:
-	MOVB	@#LDC59, R1
+	MOVB	@#LDC59, R2
 LB2D00:
 
 ;TODO
@@ -689,13 +710,30 @@ LBA07:
 	CALL	LBC34		; Delay x20
 	CLRB	@#LDC85		; Skip delay and copy screen in LBEDE
 ;TODO:	CALL	ScreenThemeLite	; switching to the light theme on Main Menu
-
-;TODO
-	RETURN
-
+	BR	LBA3D		; Return to Menu
+;
+MenuFromGame:
+	MOV	#<072+12.>, @#LDB8F	; "Continue" menu item -> set Menu Y pos
+;
+; Return to Menu
+;
 LBA3D:
+	MOVB	@#LDC55, R0	; get Menu background phase
+	INC	R0
+	BIC	#177770, R0
+	MOVB	R0, @#LDC55	; set Menu background phase
+;	DI
+	MOV	#LF515, R3	; Main menu screen moving background, 96 tiles
+	CALL	LA88F		; Display 96 tiles on the screen
+	MOV	#LF4B5, R3	; Main menu screen
+;	EI
+	CALL	LB177		; Display screen HL from tiles with Tileset 2
 ;TODO
-	RETURN
+	CALL	SHOWSC		; Copy shadow screen to UKNC screen
+	CALL	LA0F1		; Scan keyboard
+;TODO
+
+	BR	LBA3D
 
 ;
 ; New Game
@@ -716,16 +754,16 @@ LBAF9:	CLRB	(R3)+
 LBB03:	CLRB	(R3)+
 	SOB	R1, LBB03
 	MOV	#LDB90, R3
-	MOV	#9., R1
+	MOV	#9., R1		; 9 variables to clear
 LBB09:	CLRB	(R3)+
 	SOB	R1, LBB09
-	MOV	#LDCA2, R3
-	MOV	#72., R1
+	MOV	#LDCA2, R3	; Table with Access code slots
+	MOV	#72., R1	; 72 bytes
 LBB17:	CLRB	(R3)+
 	SOB	R1, LBB17
 	MOV	#<DLLENT+1>, R3	;   ld hl,DoorLockLevelEntered+1
 	MOV	#4, R1
-LBADE5:	CLRB	(R3)+
+LBADE5:	CLRB	(R3)+		; Clear 4 flags
 	SOB	R1, LBADE5
 	MOV	#LDC96, R3	; level 2 access code buffer
 	CALL	LBC6B		; Generate random code
@@ -748,10 +786,15 @@ LBADE5:	CLRB	(R3)+
 	CLR	@#L86D7		; Set zero penRow/penCol
 	MOV	#SE117, R3	; "'The Desolate' Space Cruiser leaves orbit. ...
 	CALL	LBEDE		; Show message char-by-char
-
-;TODO
-	RETURN
-
+	MOV	#71266, @#L86D7	; Set penRow/penCol
+	MOV	#SE0B9, R3	; String with arrow down sign
+	CALL	LBEDE		; Show message char-by-char
+	CALL	WTKEY		; Wait for any key
+	CALL	CLSHAD		; ClearShadowScreen
+	CLR	@#L86D7		; Set zero penRow/penCol
+	MOV	#SE119, R3	; "The ship sustains heavy damage. ...
+	CALL	LBEDE		; Show message char-by-char
+	CALL	WTKEY		; Wait for any key
 ;
 ; Game start
 ;
@@ -784,12 +827,6 @@ LBBEC:
 	CALL	SHOWSC		; Copy shadow screen to UKNC screen
 	CALL	LADA1		; Wait for Escape key
 	JMP	LBA3D		; Return to Menu
-;
-; Add menu background phase 0..7 to R3
-LBC29:
-	MOVB	@#LDC55, R0
-	ADD	R0, R3
-	RETURN
 ;
 ; Delay x40
 LBA81:

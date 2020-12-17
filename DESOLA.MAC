@@ -42,16 +42,7 @@ START::
 	CALL	CTITLE
 	CALL	CLSHAD			; очистка теневого экрана
 ; Запуск
-;	CALL	LBA07			; Show titles and go to Menu
-
-;	MOV	#0, R3
-;	MOV	#0, R2
-;	MOV	#<TILES1+40>, R4
-;	CALL	L9EAD
-;	MOV	#32., R3
-;	MOV	#2, R2
-;	MOV	#<TILES1+60*40>, R4
-;	CALL	L9EAD
+	CALL	LBA07			; Show titles and go to Menu
 
 ;	MOV	#LBFF8, R3	; Room #0
 ;	CALL	LADEE		; Decode 96 bytes to LDBF5
@@ -59,7 +50,7 @@ START::
 
 ;	CALL	LB0A2		; Inventory
 ;	CALL	LBBEC		; Info menu item, show Controls
-	CALL	LBADE		; New game
+;	CALL	LBADE		; New game
 ;	CALL	LBB7E		; Game start
 ;	CALL	LBF6F		; The End
 
@@ -67,7 +58,12 @@ START::
 ;	MOV	#0, R2
 ;	MOV	#0., R3
 ;	CLR	R0
-;	CALL	L9EDE
+;	CALL	L9EDE		; Draw sprite
+;	MOV	#SPRITE, R4
+;	MOV	#4, R2
+;	MOV	#0., R3
+;	MOV	#200, R0	; flip horz
+;	CALL	L9EDE		; Draw sprite
 
 ;	CALL	LAB28		; Small message popup
 
@@ -155,12 +151,8 @@ WAITUP:
 ;   (L86D7) = penCol 0..191
 ; Returns R3 = address
 GSADDR:
-	ADD	R0, R0		; now R0 = row * 2
-	MOV	R0, R3
-	ADD	R3, R3		; now R3 = row * 4
-	ADD	R0, R3		; now R3 = row * 6
-	ADD	R3, R3		; now R3 = row * 12
-	ADD	R3, R3		; now R3 = row * 24
+	ADD	R0, R0
+	MOV	MUL24D(R0), R3	; R3 = row * 24
 	ADD	#SHADOW, R3
 	MOVB	@#L86D7, R0	; get penCol
 	BIC	#177400, R0
