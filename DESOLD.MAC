@@ -697,6 +697,7 @@ LDB9C:                  ; Inventory items: 0 = not having, 001 = have it
   .BYTE 000,000,000,000,000,000,000,000
   .BYTE 000,000,000,000,000,000,000,000
   .BYTE 000,000,000,000,000,000,000
+	.EVEN
 LDBC3:  .WORD 00000     ; Player Deaths count
 LDBC5:  .WORD 00000     ; Enemies Killed count
 LDBC7:  .BYTE 000       ; Items Found count

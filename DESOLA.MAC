@@ -44,35 +44,19 @@ START::
 ; Запуск
 ;	CALL	LBA07			; Show titles and go to Menu
 
-;	MOV	#LBFF8, R3	; Room #0
-;	CALL	LADEE		; Decode 96 bytes to LDBF5
-;	CALL	LA88F		; Display 96 tiles on the screen
-
 ;	CALL	LB0A2		; Inventory
 ;	CALL	LBBEC		; Info menu item, show Controls
 ;	CALL	LBADE		; New game
 	CALL	LBB7E		; Game start
 ;	CALL	LBF6F		; The End
 ;	CALL	LBF81		; Credits
-
-;	CLRB	@#L86D7		; penCol
-;	MOV	#138., R0
-;	CALL	GSADDR
-;	CLR	@#L86D7
-;	CALL	DRNUM5
-
-;	MOV	#SPRITE, R4
-;	MOV	#0, R2
-;	MOV	#0., R3
-;	CLR	R0
-;	CALL	L9EDE		; Draw sprite
-;	MOV	#SPRITE, R4
-;	MOV	#4, R2
-;	MOV	#0., R3
-;	MOV	#200, R0	; flip horz
-;	CALL	L9EDE		; Draw sprite
-
 ;	CALL	LAB28		; Small message popup
+
+;	MOV	#<TILES3+64.>, R4
+;	MOVB	#0, R3		; get Y pos
+;	MOVB	#1, R2		; get X pos
+;	MOV	#16., R1
+;	CALL	L9E5F		; Draw tile by XOR operation
 
 	CALL	SHOWSC
 

@@ -81,7 +81,7 @@ SE0A1: .ASCIZ "Items Found (/24):|"<037><002>"Enemies Killed:|"<037><003>"Player
 SE0A3: .ASCIZ "OverWrite Current Game?|Enter - Yes :: G - No"
 SE0A5: .ASCIZ "- Controls -"
 SE0A7: .ASCII "Arrows: Movement|Space: Look/shoot|I: Inventory|Q: Look/shoot mode|"
-       .ASCIZ "AR2: Close all pop-ups|P: Quit to Menu"
+       .ASCIZ "P: Quit to Menu|Other keys: Close pop-up"
 SE0A9: .ASCIZ "Earn 3 Good Awards for|an Extended Ending!"
 SE0AB: .ASCIZ "Sir Miss-A-Lot"
 SE0AD: .ASCIZ "Sherlock Holmes"

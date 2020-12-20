@@ -13,7 +13,7 @@ L9DDD1:
 	CALL	LB76B		; Process shoot
 	CALL	LB551		; Process Alien in the room
 ; Process keys
-	CLR	@#<L9E191+2>	; Clear key pressed stored for the game loop end
+	CLR	@#KEYSTO	; Clear stored key
 	CALL	LA0F1		; Scan keyboard
 	BEQ	L9DDDE		; no key => skip the analysis
 	CMP	R0, #004	; Up key?
@@ -26,7 +26,12 @@ L9DDD1:
 	BEQ	L9DMRT
 	CMP	R0, #15.	; Menu key?
 	BEQ	L9DMNU
-	MOV	R0, @#<L9E191+2>	; store key pressed for the game loop end
+	MOV	R0, @#KEYSTO	; store key pressed for the game loop end
+;DEBUG
+	MOV	@#KEYSTO, R3
+	MOV	#73020, @#L86D7	; Set penRow/penCol
+	MOV	R0, R3
+	CALL	DRNUM5
 L9DDDE:	JMP	LA8C6		; Draw the Player, then go to the Ending of main game loop
 ;
 L9DMDN: JMP	LA966		; 001 Move down
@@ -37,11 +42,12 @@ L9DLST:	JMP	LAAAF		; 005 Look / Shoot
 L9DINV:	JMP	LB0A2		; 006 Open the Inventory
 L9DSWI:	JMP	LB930		; 010 Look / Shoot Mode switch
 L9DMNU:	JMP	MENUFG		; Return to main Menu
+KEYSTO: .WORD	0		; Key pressed stored for the game loop
 ;
 ; Ending of main game loop
 L9E19:
 	CALL	LB653		; Draw Alien
-L9E191:	MOV	#000, R0	; key not processed yet
+	MOV	@#KEYSTO, R0	; get key not processed yet
 	BNE	L9E192
 	CALL	LA0F1		; Scan keyboard
 L9E192:	CMP	R0, #005	; Look/shoot key?
@@ -66,8 +72,8 @@ L9E51:
 L9E5F:
 	ADD	R3, R3
 	MOV	MUL24D(R3), R3	; R3 = row * 24
-	MOV	R2, R0		; get X coord, pixels
-	BIC	#177770, R0	; offset within 8px column, 0..7
+	MOV	R2, R5		; get X coord, pixels
+	BIC	#177770, R5	; offset within 8px column, 0..7
 	ASR	R2
 	ASR	R2
 	ASR	R2		; R2 = number of 8px column
@@ -80,11 +86,24 @@ L9E8D:				; loop by R1 - by rows
 	MOV	R5, R1		; get shift
 	BEQ	L9E9D		; shift 0 => skip all shift ops
 L9E96:				; shift bits
-	ASR	R0
-	RORB	R2
+	ASL	R0
+	ROLB	R2
 	SOB	R1, L9E96
 L9E9D:
-;TODO: put with XOR on the screen
+	CLR	R1
+	BISB	(R3)+, R1	; get 1st byte
+	SWAB	R1
+	BISB	(R3), R1	; get 2nd byte
+	SWAB	R1
+	DEC	R3		; back to 1st byte
+	XOR	R0, R1
+	MOVB	R1, (R3)+	; put 1st byte
+	SWAB	R1
+	MOVB	R1, (R3)+	; put 2nd byte
+	MOVB	(R3), R1	; get 3rd byte
+	XOR	R2, R1
+	MOVB	R1, (R3)	; put 3rd byte
+	ADD	#22., R3
 	POP	R1
 	SOB	R1, L9E8D	; continue loop by rows
 	RETURN
@@ -211,6 +230,7 @@ LA0F1:
 	CMP	#040, R0	; Клавиша пробел?
 	BNE	LA0F11
 	MOV	#005, R0
+	RETURN
 LA0F11:	CMP	#15502, R0	; Клавиша вниз?
 	BNE	LA0F12
 	MOV	#001, R0
@@ -227,18 +247,17 @@ LA0F14:	CMP	#15501, R0	; Клавиша вверх?
 	BNE	LA0F15
 	MOV	#004, R0
 	RETURN
-LA0F15:
-;TODO: Escape AR2
-LA0F16:	CMP	#111, R0	; Inventory key? 'I'
-	BNE	LA0F17
+LA0F15:	CMP	#111, R0	; Inventory key? 'I'
+	BNE	LA0F16
 	MOV	#006, R0
 	RETURN
-LA0F17:	CMP	#120, R0	; Menu key? 'P'
+LA0F16:	CMP	#120, R0	; Menu key? 'P'
 	BNE	LA0F18
 	MOV	#15., R0
 	RETURN
+; All other keys = Escape
 LA0F18:
-	CLR	R0
+	MOV	#007, R0
 LA0F1R:	RETURN
 ;
 ; Display 96 tiles on the screen with background tiles (Tileset1)
@@ -891,18 +910,66 @@ LAE3D:
 	MOV	#42012, @#L86D7	; Set penRow/penCol
 	CALL	LAFFE		; Get "Access code level N required" string by access level in DC8C
 	CALL	LBEDE		; Show message HL char-by-char
-
+	MOVB	#37., @#LDC82	; set current item number - "Enter" sign
+	MOVB	#160., @#LDC83	; set X pos
+	MOVB	#96., @#LDC84	; set Y pos
+	MOVB	#6, @#LDC57	; set Door Lock pos
+; Check if the access code was entered before for this level
+;TODO
+	BR	LAE80 ;STUB
+; Access code was entered for this level before, so pre-fill the code
+	CALL	LAFEC		; LDC8C access code level -> HL = address from LE015 table
+	MOV	#LDC8D, R2	; buffer for entering the code, 4 tile numbers
+	MOVB	(R3)+, (R2)+
+	MOVB	(R3)+, (R2)+
+	MOVB	(R3)+, (R2)+
+	MOVB	(R3)+, (R2)+
+	MOVB	#2, @#LDC57	; set Door Lock pos
+	CALL	DLOKSH		; show the pre-filled code
 ;TODO
 ; Door Lock loop starts here
 LAE80:
-;TODO
+	MOV	#<TILES3+480.>, R4	; Selection box tile
+	MOV	#16., R1	; height
+	MOVB	@#LDC84, R3	; get Y pos
+	CLR	R2
+	BISB	@#LDC83, R2	; get X pos
+	CALL	L9E5F		; Draw tile by XOR operation
+	CALL	SHOWSC		; Copy shadow screen to UKNC screen
 ; Delay and wait for key in Door Lock
-LAE99:
-;TODO
+LAE99:	MOV	#12., R1
+LAE9B:	CALL	LB2D0		; Delay by LDC59
+	SOB	R1, LAE9B
+; Door Lock scan keyboard and process key pressed
+	CALL	LA0F1		; Scan keyboard
+	CMP	R0, #005	; Select key
+	BEQ	LAEBA
+	CMP	R0, #001	; Down key?
+	BEQ	DLOKDN
+	CMP	R0, #002	; Left key?
+	BEQ	LAF70
+	CMP	R0, #003	; Right key?
+	BEQ	LAF86
+	CMP	R0, #004	; Up key?
+	BEQ	DLOKUP
+	CMP	R0, #007	; Escape key?
+	BNE	LAE99		; no => continue the key waiting loop
+	JMP	L9E2E		; Exit Door Lock - Show the screen, continue the game main loop
 ; Door Lock Select key pressed
 LAEBA:
 ;TODO
 	RETURN
+
+;
+; Show four tiles with the entered code
+; DoorLockDisplayCode:
+DLOKSH:
+	MOV	#LDC8D, R3
+	MOV	#4, R1
+LAEEF:
+;TODO
+	RETURN
+
 ;
 ; Access code entered, need to check
 LAF14:
@@ -914,11 +981,79 @@ LAF1D:
 LAF2C:
 ;TODO
 	RETURN
+
+; Door Lock up key pressed
+DLOKUP:
+	CMPB	@#LDC84, #48.	; Y pos = top row already?
+	BNE	DLOKU1
+	JMP	LAE99		; Return to Delay and wait for key in Door Lock
+; Move selection up
+DLOKU1:
+	CALL	LAFD2		; Draw selection box by XOR
+	MOVB	@#LDC84, R0	; get Y pos
+	SUB	#16., R0	; one tile up
+	MOVB	R0, @#LDC84	; set Y pos
+	MOVB	@#LDC82, R0	; get Inventory current
+	SUB	#3, R0
+	MOVB	R0, @#LDC82	; set Inventory current
+	BR	LAE80		; continue the Door Lock loop
+; Door Lock down key pressed
+DLOKDN:
+	CMPB	@#LDC84, #96.	; Y pos = bottom row already?
+	BNE	DLOKD1
+	JMP	LAE99		; Return to Delay and wait for key in Door Lock
+; Move selection down
+DLOKD1:
+	CALL	LAFD2		; Draw selection box by XOR
+	MOVB	@#LDC84, R0	; get Y pos
+	ADD	#16., R0	; one tile down
+	MOVB	R0, @#LDC84	; set Y pos
+	MOVB	@#LDC82, R0	; get Inventory current
+	ADD	#3, R0
+	MOVB	R0, @#LDC82	; set Inventory current
+	BR	LAE80		; continue the Door Lock loop
+; Move selection right
+LAF5A:
+	CALL	LAFD2		; Draw selection box by XOR
+	INCB	@#LDC82		; Inventory current right
+	RETURN
+; Move selection left
+LAF65:
+	CALL	LAFD2		; Draw selection box by XOR
+	DECB	@#LDC82		; Inventory current left
+	RETURN
+; Door Lock - key Left
+LAF70:
+	MOVB	@#LDC83, R0	; get X pos
+	CMPB	R0, #128.
+	BNE	LAF701		; => move selection
+	JMP	LAE99		; Return to Delay and wait for key in Door Lock
+LAF701:	CALL	LAF65		; Move selection Left
+	MOVB	@#LDC83, R0	; get X pos
+	SUB	#16., R0
+	MOVB	R0, @#LDC83	; set X pos
+	JMP	LAE80		; continue the Door Lock loop
+; Door Lock - key Right
+LAF86:
+	MOVB	@#LDC83, R0	; get X pos
+	CMPB	R0, #160.
+	BNE	LAF861		; => move selection
+	JMP	LAE99		; Return to Delay and wait for key in Door Lock
+LAF861:	CALL	LAF5A		; Move selection Right
+	MOVB	@#LDC83, R0	; get X pos
+	ADD	#16., R0
+	MOVB	R0, @#LDC83	; set X pos
+	JMP	LAE80		; continue the Door Lock loop
 ;
 ; Draw selection box by XOR
 LAFD2:
-;TODO
-	RETURN
+	MOV	#<TILES3+480.>, R4
+	MOV	#16., R1
+	MOVB	@#LDC84, R3	; get Y pos
+	CLR	R2
+	BISB	@#LDC83, R2	; get X pos
+	CALL	L9E5F		; Draw tile by XOR operation
+	JMP	SHOWSC
 ;
 ; LDC8C access code level -> address from LE015 table
 LAFEC:
@@ -1019,24 +1154,31 @@ LB119:
 	JMP	LB1AA		; go to Inventory screen loop
 ;
 LB11C:
-;TODO
+	MOVB	#16., @#LDC83	; set X pos
+	MOVB	@#LDC84, R0
+	ADD	#20., R0	; 20 lines lower
+	MOVB	R0, @#LDC84	; set Y pos
 	RETURN
 ;
 LB12A:
+	PUSH	R1
 ;TODO
+	INCB	@#LDC5A		; increase Inventory items count
+	POP	R1
 	RETURN
 
 ;
 ; Draw tile by XOR using X = (LDC83), Y = (LDC84), then go to next position
 LB15D:
 	MOVB	@#LDC84, R3	; get Y pos for Inventory
-	MOVB	@#LDC83, R2	; get X pos for Inventory
+	CLR	R2
+	BISB	@#LDC83, R2	; get X pos for Inventory
 	MOV	#16., R1
 	CALL	L9E5F		; Draw tile by XOR operation
 	MOVB	@#LDC83, R0	; get X pos
 	ADD	#16., R0	; increase X
 	MOVB	R0, @#LDC83	; set X pos
-	CMP	R0, #176	;
+	CMP	R0, #176.	;
 	BNE	LB15DR
 	CALL	LB11C
 LB15DR:	RETURN
@@ -1101,10 +1243,16 @@ LB1F0:
 
 ; Delay by LDC59
 LB2D0:
-	MOVB	@#LDC59, R2
+	CLR	R2
+	BISB	@#LDC59, R2	; get delay factor
+	ASR	R2
+	INC	R2
 LB2D00:
-
-;TODO
+	CLR	R0
+	BISB	@#LDC59, R0
+LB2D01:
+	SOB	R0, LB2D01
+	SOB	R2, LB2D00
 	RETURN
 ;
 ; Get value (LDB90+R2)
@@ -1186,14 +1334,48 @@ LB768:
 LB76B:
 ;TODO
 	RETURN
-
+;
+; Clear all Bullet variables
+LB8DC:
+	CLRB	@#LDB8D		; clear shooting process mark
+	CLRB	@#LDB88		; clear Bullet X coord in tiles
+	CLRB	@#LDB89		; clear Bullet Y coord/line on the screen
+	CLRB	@#LDB8A		; clear Bullet Y coord in tiles
+	RETURN
 ;
 ; Show look/shoot selection indicator
 ;
 LB8EA:
-;TODO
+	TSTB	@#LDB7D		; Get look/shoot switch value
+	BEQ	LB902		; look mode? => jump
+	CALL	LB913
+	MOV	#140., R2
+	CALL	L9E5F		; Draw tile by XOR operation
+	CALL	LB91C
+	MOV	#160., R2
+	JMP	L9E5F		; Draw tile by XOR operation
+LB902:
+	CALL	LB913
+	MOV	#118., R2
+	CALL	L9E5F		; Draw tile by XOR operation
+	CALL	LB91C
+	MOV	#138., R2
+	JMP	L9E5F		; Draw tile by XOR operation
+LB913:
+	MOV	#<TILES3+20.>, R4	; Small triange pointing right
+	MOV	#006, R1	; Tile height
+	MOV	#4., R3		; Y pos
 	RETURN
-
+LB91C:
+	MOV	#<TILES3+32.+20.>, R4	; Small triange pointing right
+	MOV	#006, R1	; Tile height
+	MOV	#4., R3		; Y pos
+	RETURN
+;
+LB925:
+	MOVB	#14., @#LDCF3	; Left margin size for text
+	MOVB	#14., @#LDCF4	; Line interval for text
+	RETURN
 ;
 ; Switch Look / Shoot mode
 LB930:
@@ -1230,8 +1412,20 @@ LB9941:	MOVB	R0, @#LDB7A	; set Health
 ;
 LB9A2:
 	CALL	CLSHAD		; Clear Shadow Screen
-;TODO
-	RETURN
+	MOVB	#32., @#LDCF3	; Left margin size for text
+	MOVB	#14., @#LDCF4	; Line interval for text
+	CALL	LAB28		; Show small message popup
+	MOV	#54016, @#L86D7	; Set penRow/penCol
+	MOV	#SE0BD, R3	; "The Desolate has claimed your life too . . ."
+	CALL	LBEDE		; Show message char-by-char
+	CALL	LB9D6		; Clear player variables
+	INC	@#LDBC3		; increase Player deaths count
+LB9C9:
+	CALL	SHOWSC		; Copy shadow screen to UKNC screen
+LB9C91:	CALL	LA0F1		; Scan keyboard
+	CMP	R0, #007	; Escape key? TODO: any key
+	BNE	LB9C91
+	JMP	L9E19		; Go to ending of main game loop
 ;
 ; Clear player variables
 LB9D6:
@@ -1294,19 +1488,74 @@ LBA3D:
 	INC	R0
 	BIC	#177770, R0
 	MOVB	R0, @#LDC55	; set Menu background phase
-;	DI
 	MOV	#LF515, R3	; Main menu screen moving background, 96 tiles
 	CALL	LA88F		; Display 96 tiles on the screen
 	MOV	#LF4B5, R3	; Main menu screen
-;	EI
 	CALL	LB177		; Display screen HL from tiles with Tileset 2
-;TODO
+	MOV	#11., R2	; left triangle X pos
+	MOV	#<TILES3>, R4	; Tile arrow right
+	CALL	LBA88		; Draw menu item selection triangle
+	MOV	#77., R2	; right triangle X pos
+	MOV	#<TILES3+32.>, R4	; Tile arrow left
+	CALL	LBA88		; Draw menu item selection triangle
 	CALL	SHOWSC		; Copy shadow screen to UKNC screen
 	CALL	LA0F1		; Scan keyboard
-;TODO
-
-	BR	LBA3D
-
+	CMP	R0, #005	; look/shoot key
+	BEQ	LBA93		;   select menu item
+	CMP	R0, #004	; Up key
+	BEQ	LBA3D4
+	CMP	R0, #001	; Down key
+	BEQ	LBA3D1
+	BR	LBA3D		; Return to main Menu
+;
+LBA3D1: JMP	LBBDC		; Menu down
+LBA3D4: JMP	LBBCC		; Menu up
+;
+; Draw menu item selection triangle
+;   R2 = X pos; R4 = tile address
+LBA88:
+	MOVB	@#LDB8F, R3	; get Menu Y pos
+	MOV	#10., R1	; tile height
+	JMP	L9E5F		; Draw tile by XOR; R2 = X, R3 = Y
+;
+; Select on Menu item
+LBA93:
+	MOVB	@#LDB8F, R0	; get Menu Y pos
+	CMP	R0, #58.
+	BEQ	LBA931		; New menu item
+	CMP	R0, #70.
+	BEQ	LBA932		; Continue menu item
+	CMP	R0, #82.
+	BEQ	LBA933		; Info menu item
+	CMP	R0, #94.
+	BEQ	LBA934		; Credits menu item
+	CMP	R0, #106.
+	BEQ	LBA935		; Quit menu item
+	BR	LBA3D		; Return to main Menu
+;
+LBA931:	JMP	LBAB2		; New menu item
+LBA932:	JMP	LBB82		; Continue menu item
+LBA933: JMP	LBBEC		; Info menu item
+LBA934:	JMP	LBF64		; Credits menu item
+LBA935:	JMP	L9E51		; Quit menu item
+;
+; New menu item selected
+LBAB2:
+	TSTB	@#LDB73		; do we have current game?
+	BEQ	LBADE		; no => New Game
+	CALL	LB925
+	CALL	LAB28		; Show small message popup
+	MOV	#54016, @#L86D7	; Set penRow/penCol
+	MOV	#SE0A3, R3	; "OverWrite Current Game?"
+	CALL	LBEDE		; Show message char-by-char
+	CALL	SHOWSC		; Copy shadow screen to UKNC screen
+LBACE:
+	CALL	LA0F1		; Scan keyboard
+	CMP	R0, #15.	; Menu button?
+	BEQ	LBA3D		; yes => return to Menu
+	CMP	R0, #9.		; Enter?
+	BEQ	LBADE		; yes => New Game
+	BR	LBACE		; wait some more
 ;
 ; New Game
 ;
@@ -1380,7 +1629,49 @@ LBB82:
 	MOVB	#377, @#LDC59	; set delay factor
 	CALL	LB2D0		; Delay
 	JMP	L9DDD		; return to the main game loop
-
+;
+LBB92:
+	TSTB	@#LDB73		; do we have the game to continue?
+	BNE	LBBA4
+	MOVB	@#LDB8F, R0	; get Menu Y pos
+	SUB	#24., R0	; up two steps
+	MOVB	R0, @#LDB8F	; set Menu Y pos
+	JMP	LBA3D		; Return to main Menu
+; Menu up step
+LBBA4:
+	MOVB	@#LDB8F, R0	; get Menu Y pos
+	SUB	#12., R0	; up one step
+	MOVB	R0, LDB8F	; set Menu Y pos
+	JMP	LBA3D		; Return to main Menu
+LBBAF:
+	TSTB	@#LDB73		; do we have the game to continue?
+	BNE	LBBC1
+	MOVB	@#LDB8F, R0	; get Menu Y pos
+	ADD	#24., R0	; down two steps
+	MOVB	R0, LDB8F	; set Menu Y pos
+	JMP	LBA3D		; Return to main Menu
+; Menu down step
+LBBC1:
+	MOVB	@#LDB8F, R0	; get Menu Y pos
+	ADD	#12., R0	; down one step
+	MOVB	R0, LDB8F	; set Menu Y pos
+LBBC1R:	JMP	LBA3D		; Return to main Menu
+; Menu up key pressed
+LBBCC:
+	MOVB	@#LDB8F, R0	; get Menu Y pos
+	CMP	R0, #58.	; "New Game" selected?
+	BEQ	LBBC1R		;   JP Z,LBA3D
+	CMP	R0, #82.	; "Info" selected?
+	BEQ	LBB92
+	BR	LBBA4
+; Menu down key pressed
+LBBDC:
+	MOVB	@#LDB8F, R0	; get Menu Y pos
+	CMP	R0, #106.	; "Quit" selected?
+	BEQ	LBBC1R		;   JP Z,LBA3D
+	CMP	R0, #58.	; "New Game" selected?
+	BEQ	LBBAF
+	BR	LBBC1
 ;
 ; Info menu item, show Controls
 ;
