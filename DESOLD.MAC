@@ -906,6 +906,7 @@ LE01F:          ; Table of strings: access code messages
 	.WORD SACCL2
 	.WORD SACCL3
 	.WORD SACCL4
+; DoorLockLevelEntered
 DLLENT:		; Table of flags on which levels access codes was already entered
 	.BYTE 001
 	.BYTE 000    ; level 1 code entered

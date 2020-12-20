@@ -738,6 +738,11 @@ LAC4C:
 ;
 ; Found action point at room description offset $06..$07
 LAC54:
+	CALL	LAE09		; Decode current room description to LDBF5
+	ADD	#8., R3		; offset in the room description
+	MOVB	(R3), R1
+	MOVB	@#LDB75, R0	; Direction/orientation
+	SUB	R1, R0
 ;TODO
 ; Found dead body with some item on it
 LAC97:
@@ -764,7 +769,13 @@ LACC5:
 ;
 ; Found action point at room description offset $0B..$0C
 LACE3:
+	CALL	LAE09		; Decode current room description to LDBF5
+	ADD	#13., R3	; offset in the room description
+	MOVB	(R3), R1
+	MOVB	@#LDB75, R0
+	SUB	R1, R0
 ;TODO
+	JMP	LAD5B
 ;
 ; Show screen, wait for any key, show small message popup
 LACF6:
@@ -1057,25 +1068,69 @@ LAFD2:
 ;
 ; LDC8C access code level -> address from LE015 table
 LAFEC:
-;TODO
+	MOVB	@#LDC8C, R3	; Get Access code level 0..4
+	ADD	R3, R3
+	ADD	#LE015, R3	; Table of addresses
+	MOV	(R3), R3
 	RETURN
 ;
 ; LDC8C access code level -> message address from LE01F table
 LAFFE:
-;TODO
+	MOVB	@#LDC8C, R3	; Get Access code level 0..4
+	ADD	R3, R3
+	ADD	#LE01F, R3	; Table of addresses
+	MOV	(R3), R3
 	RETURN
 ;
 ; LDC8C access code level -> "access code was entered for this level before" flag address
 ; Returns: HL = address
 ; DoorLockGetEnteredFlagAddr:
 DRGEFA:
-;TODO
+	MOVB	@#LDC8C, R3	; Get Access code level 0..4
+	ADD	#DLLENT, R3
 	RETURN
 ;
 ; Going to the next room
 LB00E:
-;TODO
-	RETURN
+	CLRB	@#LDB82		; mark we don't have an alien in the room
+	MOVB	#40., @#LDC59	; set delay factor
+	MOVB	@#LDC8A, R0	; get Direction to other room
+	DEC	R0		; 001 down?
+	BEQ	LB03E
+	DEC	R0		; 002 up?
+	BEQ	LB04F
+	DEC	R0		; 003 left?
+	BEQ	LB061
+	DEC	R0		; 004 right?
+	BEQ	LB06E
+LB02E:
+	MOV	#8., R1		; x8
+LB030:	CALL	LB2D0		; Delay
+	SOB	R1, LB030
+	MOVB	@#LDC86, @#LDB79	; copy room number
+	JMP	L9E2E		; Show the screen, continue the game main loop
+; Going to the next room - down
+LB03E:
+	MOVB	#48., @#LDB77	; set Y pixel coord
+	CLRB	@#LDB75		; Direction/orientation = down
+	MOVB	#3., @#LDB78	; set Y tile coord = 3
+	JMP	LB02E
+; Going to the next room - up
+LB04F:
+	MOVB	#96., @#LDB77	; set Y pixel coord
+	MOVB	#001, @#LDB75	; Direction/orientation = up
+	MOVB	#6., @#LDB78	; set Y tile coord = 6
+	JMP	LB02E
+; Going to the next room - left
+LB061:
+	MOVB	#10., @#LDB76	; set X tile coord = 10
+	MOVB	#002, @#LDB75	; Direction/orientation = left
+	JMP	LB02E
+; Going to the next room - right
+LB06E:
+	MOVB	#1., @#LDB76	; set X tile coord = 1
+	MOVB	#003, @#LDB75	; Direction/orientation = right
+	JMP	LB02E
 ;
 ; Decrease Health by 4, restore Y coord
 LB07B:
@@ -1162,11 +1217,28 @@ LB11C:
 ;
 LB12A:
 	PUSH	R1
-;TODO
-	INCB	@#LDC5A		; increase Inventory items count
+	MOV	#29., R0	; 29 items
+	SUB	R1, R0
+	PUSH	R0
+	CALL	LB529		; Convert Inventory item number to icon number
+	MOV	R0, R4
+	ADD	R4, R4
+	ADD	R4, R4
+	ADD	R4, R4
+	ADD	R4, R4
+	ADD	R4, R4		; * 32
+	ADD	#<TILES3+64>, R4
+	CALL	LB15D		; Draw tile by XOR then go to next position
+	MOV	#LDC5B, R3	; Inventory items
+	MOVB	@#LDC5A, R0	; get Inventory items count
+	ADD	R0, R3
+	POP	R0
+	MOVB	R0, (R3)
+	BNE	LB12A1
+	CALL	LB301		; => mark we've got Data cartridge reader
+LB12A1:	INCB	@#LDC5A		; increase Inventory items count
 	POP	R1
 	RETURN
-
 ;
 ; Draw tile by XOR using X = (LDC83), Y = (LDC84), then go to next position
 LB15D:
@@ -1255,6 +1327,94 @@ LB2D01:
 	SOB	R2, LB2D00
 	RETURN
 ;
+; Print string LDCF9
+LB2DE:
+;TODO
+	RETURN
+;
+; We've got Data cartridge reader
+LB301:
+	MOVB	#001, @#LDCF5	; Data cartridge reader slot
+	RETURN
+;
+; Inventory Look/shoot key pressed
+LB307:
+;TODO
+
+; Data cartridge reader (or data cartridge) selected in the Inventory
+LB33F:
+;TODO
+
+;
+; Data cartridge selected in the Inventory
+LB3AF:
+;TODO
+
+;
+; Something other selected in the Inventory
+LB3E8:
+;TODO
+
+;
+; Power drill selected in the Inventory
+LB3F4:
+;TODO
+; Using Power Drill in the proper spot
+LB41C:
+;TODO
+
+;
+; Life Support Data Disk selected in the Inventory
+LB44A:
+;TODO
+
+; Using Life Support Data Disk in the proper spot
+LB472:
+;TODO
+
+;
+; Air-Lock Tool selected in the Inventory
+LB487:
+;TODO
+
+; Using Air-Lock Tool in the proper spot
+LB4AF:
+;TODO
+
+;
+; Box of Power Cells selected in the Inventory
+LB4C4:
+;TODO
+
+; Using Box of Power Cells in the proper spot
+LB4EC:
+;TODO
+
+;
+; Rubik's Cube selected in the Inventory
+LB501:
+;TODO
+
+;
+; Show message HL and show the screen
+LB513:
+;TODO
+
+;
+LB51F:
+	CALL	LB2DE		; Print string LDCF9
+	MOV	#57022, @#L86D7
+	RETURN
+;
+; Convert Inventory item number to icon number
+LB529:
+	TSTB	R0
+	BEQ	LB529R		; 0 = Data cartridge reader
+	SUB	#11., R0
+	BHIS	LB529R
+	MOV	#001, R0	; Data cartridge
+LB529R:	RETURN
+;
 ; Get value (LDB90+R2)
 LB531:
 	MOVB	LDB90(R2), R0
@@ -1333,7 +1493,65 @@ LB768:
 ;
 LB76B:
 ;TODO
+LB797:
+;TODO
+; Bullet down
+LB7AD:
+;TODO
+; Bullet up
+LB7C7:
+;TODO
+; Bullet left
+LB7E1:
+;TODO
+; Bullet right
+LB7F3:
+;TODO
+;
+LB805:
+;TODO
+;
+LB82B:
+;TODO
 	RETURN
+;
+LB84A:
+	CLRB	@#LDB8C		; clear shooting flag
+	RETURN
+;
+; Get Bullet tile address and draw flags
+;   Returns: DE = tile address; A = draw flags (always $00)
+LB84F:
+;TODO
+	RETURN
+;
+; Move the Bullet
+LB87C:
+;TODO
+	RETURN
+;
+; For Bullet direction left: dec E, right: inc E
+LB89B:
+;TODO
+	RETURN
+;
+; For Bullet direction up: dec B, down: inc B
+LB8AB:
+;TODO
+	RETURN
+;
+; Get A = Bullet position within the room
+LB8BB:
+;TODO
+	RETURN
+;
+; Is the Bullet hit the Alien?
+LB8CA:
+;TODO
+; Bullet hit something
+LB8D6:
+;TODO
+
 ;
 ; Clear all Bullet variables
 LB8DC:
@@ -1703,30 +1921,96 @@ LBC36:
 	RETURN
 ;
 ; Draw access code, 4 chars
-;   HL = access code buffer address
+;   R3 = access code buffer address
 LBC3C:
-;TODO
+	MOV	#50070, @#L86D7	; penRow/penCol
+	MOV	#4, R1
+LBC45:
+	PUSH	R1
+	MOVB	(R3)+, R0
+	PUSH	R3
+	CMP	R0, #36.	; tile number for '-' sign
+	BEQ	LBC64
+	ADD	#48., R0	; from tile number to '0'..'9' char
+LBC53:	CALL	DRCHAR
+	POP	R3
+	POP	R1
+	SOB	R1, LBC45
 	RETURN
+LBC64:
+	MOV	#45., R0	; '-'
+	BR	LBC53
 ;
 ; Generate random access code
-;   HL = 4-byte buffer address
+;   R3 = 4-byte buffer address
 LBC6B:
-;TODO
+	MOV	#4, R1
+LBC6D:
+	PUSH	R1
+	PUSH	R3
+	CALL	RAND11		; Generate random number 0..10
+	ADD	#26., R0
+	POP	R3
+	MOVB	R0, (R3)+
+	POP	R1
 	RETURN
 ;
 ; Clear shadow screen and copy to UKNC screen
 LBC7D:
 	CALL	CLSHAD		; Clear shadow screen
 	JMP	SHOWSC		; Copy shadow screen to UKNC screen
-
+;
+; Set zero penRow/penCol
+; ClearPenRowCol:
+LBC84:
+	CLR	@#L86D7		; Set penRow/penCol = Left-top corner
+	RETURN
 ;
 ; Found action point at room description offset $0F..$10
 LBC8B:
+	CALL	LAE09		; Decode current room description to LDBF5
+	ADD	#17., R3	; offset in the room description
+	MOVB	(R3), R1
+	MOVB	@#LDB75, R0	; Direction/orientation
+	SUB	R1, R0
 ;TODO
 ; Show the message, show screen, wait for key, continue game main loop
 LBCC5:
-;TODO
+	CALL	LBEDE		; Show message char-by-char
+	CALL	SHOWSC		; Copy shadow screen to UKNC screen
+LBCCB:
+	CALL	LA0F1		; Scan keyboard
+	CMP	R0, #007	; Escape key?
+	BNE	LBCCB		; no => wait some more
 	JMP	L9E2E		; Show the screen, continue the game main loop
+;
+LBCD5:
+;TODO
+; RoomDesc[$13] == $01 - the Generator
+LBCF6:
+;TODO
+; RoomDesc[$13] == $02 - the Workstation
+LBCFF:
+;TODO
+; RoomDesc[$13] == $04 - Life-Support System
+LBD4E:
+;TODO
+; RoomDesc[$13] == $05 - Evacuation Deck re-pressurised
+LBD57:
+;TODO
+; RoomDesc[$13] == $06 - Guidance System
+LBD60:
+;TODO
+; Set penRow/penCol = $580A
+LBD69:
+	MOV	#54012, @#L86D7	; Set penRow/penCol
+	RETURN
+; RoomDesc[$13] == $07 - Pod
+LBD70:
+;TODO
+; Flying away on the Pod
+LBD85:
+;TODO
 
 ; Draw string on the screen
 ;   R3 = String address
