@@ -847,8 +847,25 @@ LADA1:
 ;
 ; We found the weapon
 LADA9:
-;TODO
-	RETURN
+	MOVB	@#LDCF7, R0
+	BEQ	LADA91
+	JMP	LAADA		; Show the screen, continue the game main loop
+; Picking up the weapon
+LADA91:
+	CALL	LAB28		; Show small message popup
+	MOVB	#001, @#LDCF7	; We've got the weapon
+	MOV	#54034, @#L86D7	; Set penRow/penCol
+	MOV	#SE0CD, R3	; "Hey Whats This  .  .  . ?"
+	CALL	LBEDE		; Show message char-by-char
+	CALL	LACB8		; Show arrow sign in bottom-right corner
+	CALL	LACF6		; Show screen, wait for any key, show small message popup
+	MOV	#54060, @#L86D7	; Set penRow/penCol
+	MOV	#SE0CF, R3	; "You Picked Up A"
+	CALL	LBEDE		; Show message char-by-char
+	MOV	#63054, @#L86D7	; Set penRow/penCol
+	MOV	#SE0B7, R3	; "Ion Phaser"
+	CALL	LBEDE		; Show message char-by-char
+	BR	LAD8C		; Show screen and wait for Escape key
 ;
 ; Decode current room to LDBF5
 ;   Returns: R3 = LDBF5
@@ -926,8 +943,9 @@ LAE3D:
 	MOVB	#96., @#LDC84	; set Y pos
 	MOVB	#6, @#LDC57	; set Door Lock pos
 ; Check if the access code was entered before for this level
-;TODO
-	BR	LAE80 ;STUB
+	CALL	DRGEFA		; DoorLockGetEnteredFlagAddr
+	MOVB	(R3), R0	; get "access code was entered for this level" flag
+	BEQ	LAE80		; the code wasn't entered => enter the code as usual
 ; Access code was entered for this level before, so pre-fill the code
 	CALL	LAFEC		; LDC8C access code level -> HL = address from LE015 table
 	MOV	#LDC8D, R2	; buffer for entering the code, 4 tile numbers
@@ -937,7 +955,6 @@ LAE3D:
 	MOVB	(R3)+, (R2)+
 	MOVB	#2, @#LDC57	; set Door Lock pos
 	CALL	DLOKSH		; show the pre-filled code
-;TODO
 ; Door Lock loop starts here
 LAE80:
 	MOV	#<TILES3+480.>, R4	; Selection box tile
@@ -956,43 +973,114 @@ LAE9B:	CALL	LB2D0		; Delay by LDC59
 	CMP	R0, #005	; Select key
 	BEQ	LAEBA
 	CMP	R0, #001	; Down key?
-	BEQ	DLOKDN
+	BEQ	LAE9B1
 	CMP	R0, #002	; Left key?
-	BEQ	LAF70
+	BEQ	LAE9B2
 	CMP	R0, #003	; Right key?
-	BEQ	LAF86
+	BEQ	LAE9B3
 	CMP	R0, #004	; Up key?
-	BEQ	DLOKUP
+	BEQ	LAE9B4
 	CMP	R0, #007	; Escape key?
 	BNE	LAE99		; no => continue the key waiting loop
 	JMP	L9E2E		; Exit Door Lock - Show the screen, continue the game main loop
+;
+LAE9B1:	JMP	DLOKDN		; Door Lock Down key
+LAE9B2:	JMP	LAF70		; Door Lock Left key
+LAE9B3:	JMP	LAF86		; Door Lock Right key
+LAE9B4:	JMP	DLOKUP		; Door Lock Up key
+;
 ; Door Lock Select key pressed
 LAEBA:
 ;TODO
-	RETURN
-
+	MOVB	@#LDC82, R0
+	CMP	R0, #37.	; "Enter" sign?
+	BNE	LAEBA1
+	JMP	LAF14		; yes => Code entered, need to check it
+LAEBA1:	MOVB	@#LDC57, R0	; get Door Lock pos
+	DEC	R0
+	CMP	R0, #001
+	BEQ	LAE99		; Return to Delay and wait for key in Door Lock
+	MOVB	R0, @#LDC57	; set Door Lock pos
+; Move entered code digits higher
+	MOV	#3, R1
+	MOV	#LDC8D, R3
+	INC	R3
+LAED4:
+	PUSH	R3
+	MOVB	(R3), R0
+	DEC	R3
+	MOVB	R0, (R3)
+	POP	R3
+	INC	R3
+	SOB	R1, LAED4
+	MOV	#<LDC8D+3>, R3	; Buffer for entering access code +3
+	MOVB	@#LDC82, R0	; get current selection
+	MOVB	R0, (R3)
+; Show four tiles with the entered code
+	CALL	DLOKSH		; DoorLockDisplayCode
+	CALL	SHOWSC		; Copy shadow screen to UKNC screen
+	JMP	LAE99		; Return to Delay and wait for key in Door Lock
 ;
 ; Show four tiles with the entered code
 ; DoorLockDisplayCode:
 DLOKSH:
-	MOV	#LDC8D, R3
+	MOV	#LDC8D, R3	; Buffer for entering access code
 	MOV	#4, R1
 LAEEF:
-;TODO
+	MOVB	(R3), R4
+	ADD	R4, R4
+	ADD	R4, R4
+	ADD	R4, R4
+	ADD	R4, R4
+	ADD	R4, R4
+	ADD	R4, R4		; * 64
+	ADD	#TILES2, R4
+	MOV	R1, R2
+	ADD	R2, R2
+	ADD	R2, R2
+	ADD	R2, R2		; * 8 = col
+	MOV	#16., R3	; row
+	CALL	DRTIL2
+	ADD	#2, R1
+	CMP	R1, #12.
+	BNE	LAEEF
 	RETURN
-
 ;
 ; Access code entered, need to check
 LAF14:
-;TODO
+	MOVB	@#LDC57, R0	; get Door Lock pos
+	DEC	R0
+	CMP	R0, #001
+	BEQ	LAF2C		; => validate the code
 ; Invalid Code
 LAF1D:
-;TODO
+	CALL	LB09B		; Preparing to draw string with the result
+	MOV	#SE0DF, R3	; "INVALID CODE"
+	CALL	DRSTR		; Show message
+	CALL	SHOWSC		; Copy shadow screen to UKNC screen
+	JMP	LAE99		; Return to Delay and wait for key in Door Lock
 ; Validate the code entered
 LAF2C:
-;TODO
-	RETURN
-
+	MOV	#4, R1
+	MOV	#LDC8D, R2	; Buffer for entering access code
+	CALL	LAFEC		; LDC8C access code level -> HL = address from LE015 table
+LAF34:
+	CMPB	(R2)+, (R3)+
+	BNE	LAF1D		; -> Invalid Code
+	SOB	R1, LAF34
+	CALL	LB09B		; Preparing to draw string with the result
+	MOV	#SE0E1, R3	; "Accepted!"
+	CALL	DRSTR		; Show message
+	CALL	SHOWSC		; Copy shadow screen to UKNC screen
+	MOVB	@#LDC8B, R3	; get Access code slot number
+	ADD	#LDCA2, R3	; Table with Access code slots
+	MOVB	#001, (R3)	; Mark code here was accepted
+; Remember that we already entered access code for this level
+	CALL	DRGEFA		; DoorLockGetEnteredFlagAddr
+	MOVB	#001, (R3)	; set the flag
+	CALL	LBA81		; Delay x40 - added to have a pause after the Accepted message
+	JMP	LB00E		; Going to the next room
+;
 ; Door Lock up key pressed
 DLOKUP:
 	CMPB	@#LDC84, #48.	; Y pos = top row already?
@@ -1007,7 +1095,7 @@ DLOKU1:
 	MOVB	@#LDC82, R0	; get Inventory current
 	SUB	#3, R0
 	MOVB	R0, @#LDC82	; set Inventory current
-	BR	LAE80		; continue the Door Lock loop
+	JMP	LAE80		; continue the Door Lock loop
 ; Door Lock down key pressed
 DLOKDN:
 	CMPB	@#LDC84, #96.	; Y pos = bottom row already?
@@ -1022,7 +1110,7 @@ DLOKD1:
 	MOVB	@#LDC82, R0	; get Inventory current
 	ADD	#3, R0
 	MOVB	R0, @#LDC82	; set Inventory current
-	BR	LAE80		; continue the Door Lock loop
+	JMP	LAE80		; continue the Door Lock loop
 ; Move selection right
 LAF5A:
 	CALL	LAFD2		; Draw selection box by XOR
@@ -1290,29 +1378,172 @@ LB1771:	POP	R3		; restore tile address
 	RETURN
 ;
 ; Clear the bottom area in the Inventory popup
-ClearInventoryMesage:
-;TODO
+; ClearInventoryMesage:
+CLINVM:
+	PUSH	R3
+	MOV	#56001, R3	; at row 92 col 1
+	MOV	#15026, R2	; 24 rows, 22 cols
+	CALL	CLBLK		; ClearScreenBlock
+	POP	R3
 	RETURN
 ;
 ; Inventory
 LB1AA:
-;TODO
+	CLRB	@#LDC82		; clear Inventory current
+	MOVB	#16., @#LDC83	; set X pos
+	MOVB	#36., @#LDC84	; set Y pos
+	CALL	LB2AF		; Prepare item description string
 LB1BB:				; Inventory loop starts here
-;TODO
+	CALL	CLINVM		; ClearInventoryMesage
+	CALL	DRSTR		; draw Inventory item description; was: CALL LBEDE;
+	CALL	LB295		; draw Inventory selection square
+	MOVB	#68., @#LDC59	; set delay factor
+	CALL	LB2D0		; delay, to make Inventory selection more usable
 ; Inventory item selection loop
 LB1C1:
-;TODO
+	CALL	LA0F1		; Scan keyboard
+	CMP	R0, #007	; Escape key? (close any popups)
+	BNE	LB1C1A
+	JMP	L9DDD		; yes => return to the game main loop
+LB1C1A:	CMP	R0, #005	; Look/shoot key?
+	BEQ	LB1C15
+	CMP	R0, #001	; Down key?
+	BEQ	LB1C11
+	CMP	R0, #002	; Left key?
+	BEQ	LB1C12
+	CMP	R0, #003	; Right key?
+	BEQ	LB1C13
+	CMP	R0, #004	; Up key?
+	BEQ	LB1C14
+	BR	LB1C1		; continue the loop
+;
+LB1C11:	JMP	INVKDN		; Inventory Down key
+LB1C12:	JMP	LB1FE		; Inventory Left key
+LB1C13:	JMP	LB214		; Inventory Right key
+LB1C14:	JMP	INVKUP		; Inventory Up key
+LB1C15:	JMP	LB307		; Inventory Select key
+;
 LB1DB:
-;TODO
-	RETURN
+	CALL	LB2DE		; Print string LDCF9
+	JMP	LB2AF		; Prepare item description string
 LB1E2:
-;TODO
-	RETURN
+	CALL	LB295		; Draw Inventory selection square
+	DECB	@#LDC82		; dec Inventory current - left
+	JMP	LB1DB		; Print string LDCF9 and Prepare item description string
 LB1F0:
-;TODO
+	CALL	LB295		; Draw Inventory selection square
+	INCB	@#LDC82		; inc Inventory current - right
+	JMP	LB1DB		; Print string LDCF9 and Prepare item description string
+; Inventory Down key pressed
+INVKDN:
+	CALL	LB295		; Draw Inventory selection square
+	MOVB	@#LDC84, R0	; get Y pos
+	CMP	R0, #76.	; last row?
+	BEQ	INVKD1
+	ADD	#20., R0
+	MOVB	R0, @#LDC84	; set Y pos
+	MOVB	@#LDC82, R0	; get Inventory current
+	ADD	#10., R0
+	MOVB	R0, @#LDC82	; set Inventory current
+INVKD1:
+	CALL	LB1DB		; Print string LDCF9 and Prepare item description string
+	BR	LB1BB		; continue Inventory loop
+; Inventory Up key pressed
+INVKUP:
+	CALL	LB295		; Draw Inventory selection square
+	MOVB	@#LDC84, R0	; get Y pos
+	CMP	R0, #36.	; last row?
+	BEQ	INVKU1
+	SUB	#20., R0
+	MOVB	R0, @#LDC84	; set Y pos
+	MOVB	@#LDC82, R0	; get Inventory current
+	SUB	#10., R0
+	MOVB	R0, @#LDC82	; set Inventory current
+INVKU1:
+	CALL	LB1DB		; Print string LDCF9 and Prepare item description string
+	JMP	LB1BB		; continue Inventory loop
+; Inventory Left key pressed
+LB1FE:                   	; Left key pressed
+	MOVB	@#LDC83, R0	; get X pos
+	CMP	R0, #16.
+	BEQ	LB25F
+	CALL	LB1E2		; Draw square and move left
+	MOVB	@#LDC83, R0	; get X pos
+	SUB	#16., R0
+	MOVB	R0, @#LDC83	; set X pos
+	JMP	LB1BB		; continue Inventory loop
+; Inventory Right key pressed
+LB214:                    	; Right key pressed
+	MOVB	@#LDC83, R0	; get X pos
+	CMPB	R0, #160.
+	BEQ	LB22A
+	CALL	LB1F0		; Draw square and move right
+	MOVB	@#LDC83, R0	; get X pos
+	ADD	#16., R0
+	MOVB	R0, @#LDC84	; set Y pos
+	JMP	LB1BB		; continue Inventory loop
+LB22A:
+	MOVB	@#LDC84, R0	; get Y pos
+	CMP	R0, #76.	; last row?
+	BEQ	LB245
+	CALL	LB1F0		; Draw square and move left
+	MOVB	@#LDC84, R0	; get Y pos
+	ADD	#20., R0
+	MOVB	R0, @#LDC84	; set Y pos
+	MOVB	@#LDC83, R0	; get X pos
+	ADD	#16., R0
+	MOVB	R0, @#LDC84	; set Y pos
+	JMP	LB1BB		; continue Inventory loop
+LB245:
+	CALL	LB295		; Draw Inventory selection square
+	MOVB	#16., @#LDC83	; set X pos
+	MOVB	#36., @#LDC84	; set Y pos
+	CLRB	@#LDC82		; clear Inventory current
+	CALL	LB2DE		; Print string LDCF9
+	CALL	LB2AF		; Prepare item description string
+	JMP	LB1BB		; continue Inventory loop
+LB25F:
+	MOVB	@#LDC84, R0	; get Y pos
+	CMP	R0, #36.
+	BEQ	LB27A
+	CALL	LB1E2		; Draw square and move left
+	MOVB	@#LDC84, R0	; get Y pos
+	SUB	#20., R0
+	MOVB	R0, @#LDC84	; set Y pos
+	MOVB	#160., @#LDC83	; set X pos
+	JMP	LB1BB		; continue Inventory loop
+LB27A:
+	CALL	LB295		; Draw Inventory selection square
+	MOVB	#160., @#LDC83	; set X pos
+	MOVB	#76., @#LDC84	; set Y pos
+	MOVB	#29., @#LDC82	; set Inventory current
+	CALL	LB2DE		; Print string LDCF9
+	CALL	LB2AF		; Prepare item description string
+	JMP	LB1BB		; continue Inventory loop
+; Draw Inventory selection square
+LB295:
+	MOV	#<TILES3+480.>, R4
+	MOV	#16., R1
+	MOVB	@#LDC84, R3	; get Y pos
+	CLR	R2
+	BISB	@#LDC83, R2	; get X pos
+	CALL	L9E5F		; Draw tile by XOR operation
+	JMP	SHOWSC
+;
+; Prepare item description string
+;   Returns: R3 = item description string
+LB2AF:
+	MOV	#64022, @#L86D7	; Set penRow/penCol
+	MOVB	@#LDC82, R0	; get Inventory current
+	MOVB	LDC5B(R0), R0	; get item from the Inventory list
+	CMP	#143, R0	; empty slot?
+	BEQ	LB2CC
+	MOVB	R0, @#LDC89	; set as current item
+	JMP	LAE19		; Inventory item to item description string
+LB2CC:
+	MOV	#SE0DB, R3	; "---- N o  I t e m ----"
 	RETURN
-
-
+;
 ; Delay by LDC59
 LB2D0:
 	CLR	R2
@@ -1329,8 +1560,20 @@ LB2D01:
 ;
 ; Print string LDCF9
 LB2DE:
-;TODO
+	MOVB	@#LDCF2, R0
+	CMP	R0, #001
+	BNE	LB2EC
+	MOV	#56012, R3
+	CALL	LB2F7
+LB2EC:
+	MOV	#64012, R3
+	CALL	LB2F7
+	CLRB	@#LDCF2
 	RETURN
+LB2F7:
+	MOVB	R3, @#L86D7	; Set penRow/penCol
+	MOV	#LDCF9, R3
+	JMP	DRSTR
 ;
 ; We've got Data cartridge reader
 LB301:
@@ -1339,37 +1582,175 @@ LB301:
 ;
 ; Inventory Look/shoot key pressed
 LB307:
-;TODO
-
+;TODO:	CALL	WaitKeyUp
+	CALL	CLINVM		; ClearInventoryMesage
+	MOV	#LDC5B, R3	; Inventory list
+	MOVB	@#LDC82, R0	; get Inventory current
+	ADD	R0, R3
+	MOVB	(R3), R0	; get item
+	CMP	R0, #143	; empty slot?
+	BNE	LB3071
+	JMP	LB1C1
+LB3071:
+	MOVB	R0, @#LDC89	; set as current item
+	BEQ	LB33F		; $00 - Data cartridge reader
+	CMP	R0, #19.	; Power Drill?
+	BEQ	LB3072
+	CMP	R0, #20.	; Life Support Data Disk?
+	BEQ	LB3073
+	CMP	R0, #21.	; Air-Lock Tool?
+	BEQ	LB3074
+	CMP	R0, #22.	; Box of Power Cells?
+	BEQ	LB3075
+	CMP	R0, #25.	; Rubik's Cube?
+	BEQ	LB3076
+	SUB	#17., R0	; Data cartridge?
+	BLO	LB3077
+	JMP	LB3E8		; smth other
+;
+LB3072: JMP	LB3F4		; Power Drill selected
+LB3073:	JMP	LB44A		; Life Support Data Disk selected
+LB3074:	JMP	LB487		; Air-Lock Tool selected
+LB3075:	JMP	LB4C4		; Box of Power Cells selected
+LB3076:	JMP	LB501		; Rubik's Cube selected
+LB3077:	JMP	LB3AF		; Data cartridge selected
+;
 ; Data cartridge reader (or data cartridge) selected in the Inventory
 LB33F:
-;TODO
-
+	MOVB	#68., @#LDC59	; set delay factor
+	MOVB	#001, @#LDC85	; Use delay and copy screen in LBEDE
+	MOV	#LF42F, R3	; Encoded screen for Data cartridge reader
+	CALL	LADEE		; Decode 96 bytes of the screen to DBF5
+	CALL	LB177		; Display screen HL from tiles with Tileset 2
+	MOVB	@#LDCF8, R0
+	CMP	R0, #001	; was cartridge selected?
+	BEQ	LB36C		; no => jump
+	MOVB	#33., @#LDCF3	; Left margin size for text
+	MOV	#26026, @#L86D7	; Set penRow/penCol
+	MOV	#SE09B, R3	; "No Data Cartridge Selected"
+	BR	LB373
+LB36C:
+	MOV	#12026, @#L86D7	; Set penRow/penCol
+	POP	R3		; restore the message address
+LB373:
+	CALL	LBEDE		; Show message char-by-char
+	MOVB	@#LDC89, R0	; get current item number
+	CMP	R0, #002
+	BNE	LB3731
+	CALL	LB39A		; Draw level 2 access code
+LB3731:	CMP	R0, #003
+	BNE	LB3732
+	CALL	LB3A1		; Draw level 3 access code
+LB3732:	CMP	R0, #004
+	BNE	LB3733
+	CALL	LB3A8		; Draw level 4 access code
+LB3733:	CALL	SHOWSC		; Copy shadow screen to UKNC screen
+LB38B:
+	CALL	LA0F1		; Scan keyboard
+	CMP	R0, #007	; Escape key?
+	BNE	LB38B
+	CLRB	@#LDC85		; Skip delay and copy screen in LBEDE
+	JMP	L9DDD		; return to the main game loop
+LB39A:
+	MOV	#LDC96, R3	; Get code address - level 2 access code buffer
+	JMP	LBC3C
+LB3A1:
+	MOV	#LDC9A, R3	; Get code address - level 3 access code buffer
+	JMP	LBC3C
+LB3A8:
+	MOV	#LDC9E, R3	; Get code address - level 4 access code buffer
+	JMP	LBC3C
 ;
 ; Data cartridge selected in the Inventory
 LB3AF:
-;TODO
-
+	TSTB	@#LDCF5		; Data cartridge reader
+	BEQ	LB3C8		; do we have the reader? no => jump
+	MOVB	@#LDC89, R0	; get current item number
+	MOV	#LDFF3, R3	; Table address for data cartridge messages
+	CALL	LADFF		; Get address from table by index A
+	PUSH	R3		; store the message address
+	MOVB	#001, @#LDCF8	; mark that cartridge was selected
+	JMP	LB33F		; => go like the Data cartridge reader selected
+LB3C8:				; We don't have data cartridge reader
+	CALL	LB2DE		; Print string LDCF9
+	MOV	#56030, @#L86D7	; Set penRow/penCol
+	MOV	#SE0E3, R3	; "You Need A Data Cartridge Reader"
+	CALL	LB513		; Show message
+	JMP	LB1C1
+;
+LB3DA:
+	CALL	LAE09		; Decode current room description to LDBF5
+	ADD	#17., R3	; offset in the room description
+	MOVB	(R3), R1
+	MOVB	@#LDB75, R0	; Direction/orientation
+	SUB	R1, R0
+	RETURN
 ;
 ; Something other selected in the Inventory
 LB3E8:
-;TODO
-
+	CALL	LB51F
+	MOV	#SE129, R3	; "You dont seem to be able to use this item here"
+	CALL	LB513		; Show message
+	JMP	LB1C1
 ;
 ; Power drill selected in the Inventory
 LB3F4:
-;TODO
+	CALL	LB3DA
+	BNE	LB3E8
+	CALL	LB538		; Get value at $13 offset in the room description
+	CMP	R0, #001	; is it Generator in the room?
+	BNE	LB3E8
+	MOV	#<LDB90+1>, R3
+	MOVB	(R3), R0
+	BNE	LB42E		; Generator working? yes => jump
+	CALL	LB541		; Get value at $0F offset in the room description
+	SUB	R1, R0		; compare current offset in the room with the value
+	BEQ	LB41C		; equal => jump
+	INC	R3
+	MOVB	(R3), R1
+	MOVB	@#LDC56, R0	; get offset in the room
+	SUB	R1, R0
+	BNE	LB3E8
 ; Using Power Drill in the proper spot
 LB41C:
-;TODO
-
+	CALL	LB51F
+	MOV	#SE137, R3	; "You use the Power Drill to Repair the Generator"
+	CALL	LB513		; Show message
+	MOVB	#001, @#<LDB90+1>	; mark the Generator is working now
+	JMP	LB1C1
+;
+LB42E:
+	MOVB	#10., @#LDCF3	; Left margin size for text
+	MOVB	#12., @#LDCF4	; Line interval for text
+	CALL	LB2DE		; Print string LDCF9
+	MOV	#57012, @#L86D7	; Set penRow/penCol
+	MOV	#SE12D, R3	; "It doesnt look like you can do anything else here"
+	CALL	LB513		; Show message
+	JMP	LB1C1
 ;
 ; Life Support Data Disk selected in the Inventory
 LB44A:
-;TODO
-
+	CALL	LB3DA
+	BNE	LB3E8
+	CALL	LB538		; Get value at $13 offset in the room description
+	CMP	R0, #004
+	BNE	LB3E8
+	MOV	#004, R2
+	CALL	LB531		; Get value (LDB90+DE)
+	BNE	LB42E
+	CALL	LB541		; Get value at $0F offset in the room description
+	SUB	R1, R0		; compare current offset in the room with the value
+	BEQ	LB472		; equal => jump
+	INC	R3
+	MOVB	(R3), R1
+	MOVB	@#LDC56, R0	; get offset in the room
+	SUB	R1, R0
+	BNE	LB3E8
 ; Using Life Support Data Disk in the proper spot
 LB472:
+	CALL	LB51F
+	MOV	#SE139, R3	; "Life-Support System has been fully restored"
+
 ;TODO
 
 ;
