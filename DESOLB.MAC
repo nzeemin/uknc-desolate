@@ -512,7 +512,8 @@ LAA60:
 	ADD	R2, R3
 	MOVB	@#LDB78, R1	; Get Y tile coord
 	CALL	LAA8D		; For direction up - dec R1, down - inc R1
-	MOVB	MUL12D(R1), R1	; multiply by 12
+;
+LAA78:	MOVB	MUL12D(R1), R1	; multiply by 12
 	ADD	R1, R3		; now R3 = address in the room
 	MOVB	(R3), R0	; get byte from the room
 	RETURN
@@ -746,7 +747,17 @@ LAC54:
 ;TODO
 ; Found dead body with some item on it
 LAC97:
-;TODO
+	CALL	LAD4F		; Get inventory item flag for item number in LDC89
+	CMP	R0, #001	; do we have it already?
+	BNE	LAC971
+	JMP	LAADA		; have it => Show the screen, continue the game main loop
+LAC971:	MOVB	@#LDB79, R0	; Get the room number
+	BEQ	LACC5		; yes => Small message popup "OMG! This Person Is DEAD! What Happened Here!?!"
+	CALL	LAB28		; Show small message popup
+	CALL	LAB73		; Set penRow/penCol for small message popup
+	MOV	#SE0C7, R3	; " This Person is Dead . . ."
+	CALL	LBEDE		; Show message char-by-char
+	CALL	LACB8		; Show arrow sign as prompt to continue
 	JMP	LAD00
 ;
 ; Show arrow sign in bottom-right corner, as a prompt to continue
@@ -772,10 +783,11 @@ LACE3:
 	CALL	LAE09		; Decode current room description to LDBF5
 	ADD	#13., R3	; offset in the room description
 	MOVB	(R3), R1
-	MOVB	@#LDB75, R0
+	MOVB	@#LDB75, R0	; Direction/orientation
 	SUB	R1, R0
-;TODO
-	JMP	LAD5B
+	BEQ	LACE31
+	JMP	LAADA		; => Show the screen, continue the game main loop
+LACE31:	JMP	LAD5B
 ;
 ; Show screen, wait for any key, show small message popup
 LACF6:
@@ -991,8 +1003,8 @@ LAE9B4:	JMP	DLOKUP		; Door Lock Up key
 ;
 ; Door Lock Select key pressed
 LAEBA:
-;TODO
-	MOVB	@#LDC82, R0
+;TODO:	CALL	WaitKeyUp	; Wait until no key pressed to prevent double-reads of the same key
+	MOVB	@#LDC82, R0	; get current selection
 	CMP	R0, #37.	; "Enter" sign?
 	BNE	LAEBA1
 	JMP	LAF14		; yes => Code entered, need to check it
@@ -1922,8 +1934,9 @@ LB5C3:
 	MOVB	#001, @#LDB86	; set Alien direction/orientation = up
 	CALL	LB713
 	TST	R0
-	BEQ	LB737		; => Player injured by reflected bullet
-	CALL	LB6B0
+	BNE	LB5C31
+	JMP	LB737		; => Player injured by reflected bullet
+LB5C31:	CALL	LB6B0
 	CMP	R0, #001
 	BNE	LB622
 	MOVB	@#LDB7F, R0	; get Alien Y coord
@@ -1937,8 +1950,9 @@ LB5E9:
 	MOVB	#002, @#LDB86	; set Alien direction/orientation = left
 	CALL	LB713
 	TST	R0
-	BEQ	LB737		; => Player injured by reflected bullet
-	CALL	LB6B0
+	BNE	LB5E91
+	JMP	LB737		; => Player injured by reflected bullet
+LB5E91:	CALL	LB6B0
 	CMP	R0, #001
 	BNE	LB622
 	DECB	@#LDB7E		; dec Alien X coord
@@ -1949,8 +1963,9 @@ LB607:
 	MOVB	#003, @#LDB86	; set Alien direction/orientation = right
 	CALL	LB713
 	TST	R0
-	BEQ	LB737		; => Player injured by reflected bullet
-	CALL	LB6B0
+	BNE	LB6071
+	JMP	LB737		; => Player injured by reflected bullet
+LB6071:	CALL	LB6B0
 	CMP	R0, #001
 	BNE	LB622
 	INCB	@#LDB7E		; inc Alien X coord
@@ -1963,7 +1978,16 @@ LB622:
 	CALL	LB67B		; Get alien sprite address in DE
 	CALL	L9EDE		; Draw sprite DE at column H row L
 	MOV	#001, @#LDB82	; mark that we already have an Alien in the room
-;TODO
+	MOVB	@#LDB83, R0	; get Alien sprite phase
+	INC	R0		; next phase
+	CMP	R0, #001
+	BEQ	LB6221
+	CALL	LB676		; => Clear Alien tile phase
+LB6221:	MOVB	R0, @#LDB83	; set Alien sprite phase
+	MOVB	@#LDB81, R0	; get Alien type
+	CMP	R0, #002	; the big one?
+	BNE	LB64B
+	JMP	LB82B		; yes => jump to Check if the Bullet hit the Alien
 LB64B:
 	CALL	LB8CA		; Is the Bullet hit the Alien?
 	TST	R0
@@ -1995,46 +2019,97 @@ LB676:
 	RETURN
 ;
 ; Get alien sprite address
-; Returns DE = tile address, A = draw flags
+; Returns R4 = tile address, R0 = draw flags
 LB67B:
-;TODO
-	RETURN
+	MOVB	@#LDB84, R0	; Alien still alive?
+	BNE	LB685
+	MOV	#<SPRITE+1536.>, R4	; Alien dead sprite
+LB67BR:	RETURN
 LB685:
-;TODO
-	RETURN
+	CMPB	@#LDB81, #002	; Alien type = big one?
+	BEQ	LB698
+	MOV	#<SPRITE+1472.>, R4	; Small Alien sprite
+	MOVB	@#LDB83, R0	; get Alien sprite phase
+	BEQ	LB67BR		; phase 0 => return
+	MOV	#<SPRITE+2112.>, R4	; Small Alien sprite, reflected vertically
+	CLR	R0
+LB685R:	RETURN
+LB698:				; Alien type 2
+	MOV	#<SPRITE+1664.>, R4	; big Alien body sprite
+	BR	LB6A0
 LB69D:
-;TODO
+	MOV	#<SPRITE+1600.>, R4	; Alien head sprite
 LB6A0:
-;TODO
+	MOVB	@#LDB83, R0	; get Alien sprite phase
+	BEQ	LB685R
+	ADD	#128., R4	; switch to other sprite
+	CLR	R0
 	RETURN
 ;
 LB6B0:
-;TODO
-	RETURN
+	CALL	LADE5		; Decode current room to LDBF5
+	MOVB	@#LDB7E, R2	; get Alien X coord
+	CALL	LB6CD		; ?? left/right
+	ADD	R2, R3
+	MOV	#12., R2
+	MOVB	@#LDB80, R1	; get Alien Y tile coord
+	CALL	LB6DD		; ?? up/down
+	JMP	LAA78
 ;
 LB6CD:
-;TODO
+	MOVB	@#LDB86, R0	; get Alien direction/orientation
+	BEQ	LB6CDR
+	CMP	R0, #001
+	BEQ	LB6CDR
+	CMP	R0, #002	; left?
+	BNE	LB6DB
+	DEC	R2		; one left
+LB6CDR:	RETURN
+LB6DB:	INC	R2		; one right
 	RETURN
 ;
 LB6DD:
-;TODO
+	MOVB	@#LDB86, R0	; get Alien direction/orientation
+	CMP	R0, #002
+	BEQ	LB6DDR
+	CMP	R0, #003
+	BEQ	LB6DDR
+	TST	R0		; down?
+	BNE	LB6EB
+	INC	R1		; one down
+LB6DDR:	RETURN
+LB6EB:	DEC	R1		; one up
 	RETURN
 ;
 ; Get A = Alien position within the room
 LB6ED:
-;TODO
+	CALL	LB6FA		; Get B=Alien Y tile coord, C=12 line width
+	MOVB	@#LDB7E, R0	; get Alien X coord
+LB6F3:
+	ADD	R1, R0
+	SOB	R1, LB6F3
+	MOVB	R0, @#LDB87	; A = Alien Y tile coord * 12 + Alien X coord
 	RETURN
 ; Get B=Alien Y tile coord, C=12 line width
 LB6FA:
-;TODO
+	MOV	#12., R1	; Line width in tiles
+	MOVB	@#LDB80, R0	; get Alien Y tile coord
 	RETURN
 ;
 LB703:
-;TODO
-	RETURN
+	CALL	LB6FA		; Get B=Alien Y tile coord, C=12 line width
+	CALL	LB6DD		; ?? up/down
+	MOVB	@#LDB7E, R2	; get Alien X coord
+	CALL	LB6CD		; ?? left/right
+	MOV	R2, R0
+	BR	LB6F3
 ;
 LB713:
-;TODO
+	CALL	LAA9D		; Get room offset in tiles for X = LDB76, Y = LDB78
+	CALL	LB703
+	MOV	R0, R1
+	MOVB	@#LDC56, R0
+	SUB	R1, R0
 	RETURN
 ; Killed the alien
 LB71F:
@@ -2070,49 +2145,138 @@ LB74C:
 ;
 ; Fire key pressed in Shoot mode
 LB758:
-;TODO
+	MOVB	@#LDB8C, R0	; get shooting flag
+	CMP	R0, #001
+	BEQ	LB768
+	MOV	#001, R0
+	MOVB	R0, @#LDB8D	; set shooting process flag
+	MOVB	R0, @#LDD55	; set shooting flag for player's animation
 LB768:
 	JMP	L9E2E		; Show the screen, continue the game main loop
 ;
 ; Process shoot within the game main loop
 ;
 LB76B:
-;TODO
+	MOVB	@#LDB8D, R0	; get shooting process flag
+	BEQ	LB84A		; not in the process => jump
+	MOVB	@#LDB8C, R0
+	CMP	R0, #001
+	BEQ	LB797
+	MOV	#001, @#LDB8D	; set shooting process flag
+	MOVB	@#LDB75, @#LDB8B	; player Direction/orientation -> bullet
+	MOVB	@#LDB76, @#LDB88	; player X coord in tiles -> bullet
+	MOVB	@#LDB77, @#LDB89	; player Y coord/line on the screen -> bullet
+	MOVB	@#LDB78, @#LDB8A	; player Y coord in tiles -> bullet
 LB797:
-;TODO
+	MOVB	@#LDB8B, R0	; get Bullet Direction/orientation
+	BEQ	LB7AD		; down
+	CMP	#001, R0
+	BEQ	LB7C7		; up
+	CMP	#002, R0
+	BEQ	LB7E1		; left
+	CMP	#003, R0
+	BEQ	LB7F3		; right
 ; Bullet down
 LB7AD:
-;TODO
+	CALL	LB87C		; Move the Bullet
+	CMP	R0, #001	; Empty cell?
+	BNE	LB8D6
+	MOVB	@#LDB89, R0	; get Bullet Y coord/line on the screen
+	ADD	#16., R0	; down 16 rows
+	MOVB	R0, @#LDB89	; set Bullet Y coord/line on the screen
+	INCB	@#LDB8A		; inc Bullet Y coord in tiles
+	BR	LB805
 ; Bullet up
 LB7C7:
-;TODO
+	CALL	LB87C		; Move the Bullet
+	CMP	R0, #001	; Empty cell?
+	BNE	LB8D6
+	MOVB	@#LDB89, R0	; get Bullet Y coord/line on the screen
+	SUB	#16., R0
+	MOVB	R0, @#LDB89	; set Bullet Y coord/line on the screen
+	DECB	@#LDB8A		; dec Bullet Y coord in tiles
+	BR	LB805
 ; Bullet left
 LB7E1:
-;TODO
+	CALL	LB87C		; Move the Bullet
+	CMP	R0, #001	; Empty cell?
+	BNE	LB8D6
+	DECB	@#LDB88		; dec bullet X coord in tiles
+	BR	LB805
 ; Bullet right
 LB7F3:
-;TODO
+	CALL	LB87C		; Move the Bullet
+	CMP	R0, #001	; Empty cell?
+	BNE	LB8D6
+	INCB	@#LDB88		; inc bullet X coord in tiles
 ;
 LB805:
-;TODO
+	MOVB	@#LDB8D, R0	; get shooting process flag
+	BEQ	LB84A		; no => jump
+	MOVB	@#LDB88, R3	; get bullet X coord in tiles
+	ADD	R3, R3		; tile coord -> column number
+	MOVB	@#LDB89, R2	; get Bullet Y coord/line on the screen
+	CALL	LB84F		; Get Bullet sprite address in DE
+	CLR	R0		; draw flags
+	CALL	L9EDE		; Draw sprite DE at column H row L
+	MOVB	#001, @#LDB8C	;
+	MOVB	@#LDB81, R0	; get Alien type
+	CMP	R0, #002	; the big one?
+	BEQ	LB82B		; yes => jump to Check if the Bullet hit the Alien
+	JMP	LB64B		; Check Is the Bullet hit the Alien, process the hit
 ;
 LB82B:
-;TODO
-	RETURN
+	CALL	LB8CA		; Is the Bullet hit the Alien?
+	TST	R0
+	BNE	LB82BR		;  no => return
+; Bullet hit the Alien, the big one
+	CLRB	@#LDB8D		; clear shooting process flag
+	CLRB	@#LDB88		; clear Bullet X coord in tiles
+	CLRB	@#LDB89		; clear Bullet Y coord/line on the screen
+	DECB	@#LDB85		; dec Alien health
+	BNE	LB82BR		; zero Health?
+	CALL	LB71F		; yes => Killed the alien
+LB82BR:	RETURN
 ;
 LB84A:
 	CLRB	@#LDB8C		; clear shooting flag
 	RETURN
 ;
 ; Get Bullet tile address and draw flags
-;   Returns: DE = tile address; A = draw flags (always $00)
+;   Returns: R4 = tile address; A = draw flags (always $00)
+;TODO: Change to table
 LB84F:
-;TODO
+	MOVB	@#LDB8B, R0	; get Bullet Direction/orientation
+	BEQ	LB865		; down
+	CMP	R0, #001
+	BEQ	LB86A		; up
+	CMP	R0, #002
+	BEQ	LB870		; left
+	CMP	R0, #003
+	BEQ	LB876		; right
+LB865:				; Bullet goes down
+	MOV	#<SPRITE+1856.>, R4	; Bullet vert sprite
+	RETURN
+LB86A:				; Bullet goes up
+	MOV	#<SPRITE+1920.>, R4	; Bullet vert sprite
+	RETURN
+LB870:				; Bullet goes left
+	MOV	#<SPRITE+1984.>, R4	; Bullet horz sprite
+	RETURN
+LB876:				; Bullet goes right
+	MOV	#<SPRITE+2048.>, R4	; Bullet horz sprite
 	RETURN
 ;
 ; Move the Bullet
 LB87C:
-;TODO
+	CALL	LADE5		; Decode current room to LDBF5
+	MOVB	@#LDB88, R2	; get Bullet X coord in tiles
+	CALL	LB89B		; For Bullet direction left: dec E, right: inc E
+	ADD	R2, R3
+	MOVB	@#LDB8A, R0	; get Bullet Y coord in tiles
+	MOVB	MUL12D(R0), R0	; multiply by 12.
+	ADD	R0, R3
+	MOVB	(R3), R0
 	RETURN
 ;
 ; For Bullet direction left: dec E, right: inc E
