@@ -1750,37 +1750,79 @@ LB44A:
 LB472:
 	CALL	LB51F
 	MOV	#SE139, R3	; "Life-Support System has been fully restored"
-
-;TODO
-
+	CALL	LB513		; Show message
+	MOVB	#001, @#<LDB90+4>	; mark that Life-Support System is working
+	JMP	LB1C1
 ;
 ; Air-Lock Tool selected in the Inventory
 LB487:
-;TODO
-
+	CALL	LB3DA
+	BNE	LB3E8
+	CALL	LB538		; Get value at $13 offset in the room description
+	CMP	R0, #005
+	BNE	LB3E8
+	MOV	#005, R2
+	CALL	LB531		; Get value (LDB90+DE)
+	BNE	LB42E
+	CALL	LB541		; Get value at $0F offset in the room description
+	SUB	R1, R0		; compare current offset in the room with the value
+	BEQ	LB4AF		; equal => jump
+	INC	R3
+	MOVB	(R3), R1
+	MOVB	@#LDC56, R0	; get offset in the room
+	SUB	R1, R0
+	BEQ	LB3E8
 ; Using Air-Lock Tool in the proper spot
 LB4AF:
-;TODO
-
+	CALL	LB51F
+	MOV	#SE13B, R3	; "The Evacuation Deck has been re-pressurised"
+	CALL	LB513		; Show message
+	MOVB	#001, @#<LDB90+5>	; mark that the Evacuation Deck re-pressurised
+	JMP	LB1C1
 ;
 ; Box of Power Cells selected in the Inventory
 LB4C4:
-;TODO
-
+	CALL	LB3DA
+	BNE	LB4C41
+	JMP	LB3E8
+LB4C41:	CALL	LB538		; Get value at $13 offset in the room description
+	CMP	R0, #006
+	BEQ	LB4C42
+	JMP	LB3E8
+LB4C42:	MOV	#006, R2
+	CALL	LB531		; Get value (LDB90+DE)
+	BNE	LB42E
+	CALL	LB541		; Get value at $0F offset in the room description
+	SUB	R1, R0		; compare current offset in the room with the value
+	BEQ	LB4EC		; equal => jump
+	INC	R3
+	MOVB	(R3), R1
+	MOVB	@#LDC56, R0	; get offset in the room
+	SUB	R1, R0
+	BEQ	LB4EC
+	JMP	LB3E8
 ; Using Box of Power Cells in the proper spot
 LB4EC:
-;TODO
-
+	CALL	LB51F
+	MOV	#SE13D, R3	; "You Insert a Power Cell. Guidance System Online"
+	CALL	LB513		; Show message
+	MOVB	#001, @#<LDB90+6>	; mark we have Guidance System working
+	JMP	LB1C1
 ;
 ; Rubik's Cube selected in the Inventory
 LB501:
-;TODO
-
+	CALL	LB2DE		; Print string LDCF9
+	MOV	#57024, @#L86D7	;
+	MOV	#SE12B, R3	; "You dont have any time to play with this now"
+	CALL	LB513		; Show message
+	JMP	LB1C1
 ;
 ; Show message HL and show the screen
 LB513:
-;TODO
-
+	CALL	LBEDE		; Show message char-by-char
+	CALL	SHOWSC		; Copy shadow screen to UKNC screen
+	MOVB	#001, @#LDCF2
+	RETURN
 ;
 LB51F:
 	CALL	LB2DE		; Print string LDCF9
@@ -1820,24 +1862,186 @@ LB541:
 ;
 ; Process alien in the room
 LB551:
-;TODO
-	RETURN
-
+	CALL	LB72E		; Get value at offset $2F in the room description
+	TST	R0		; do we have the alien?
+	BNE	LB5511
+	RETURN			; we don't have it => return
+; We have an alien in the room description
+LB5511:
+	TSTB	@#LDB82		; do we have it already in the room?
+	BNE	LB57B		; yes => jump
+	DEC	R3		; now HL = RoomDesc + $2E
+	MOVB	(R3), @#LDB81	; set Alien type
+	DEC	R3		; now HL = RoomDesc + $2D
+	MOVB	(R3), @#LDB80	; set Alien Y tile coord
+	DEC	R3		; now HL = RoomDesc + $2C
+	MOVB	(R3), R0
+	ADD	R0, R0
+	MOVB	R0, @#LDB7F	; set Alien Y coord
+	DEC	R3		; now HL = RoomDesc + $2B
+	MOVB	(R3), @#LDB7E	; set Alien X coord
+	MOVB	#003, @#LDB85	; set alien health = 3
+	MOVB	#001, @#LDB84	; set Alien alive flag
+LB57B:
+	MOVB	@#LDB84, R0	; Alien still alive?
+	BEQ	LB622		; dead => jump
+	CALL	RAND8		; Generate random number 0..7
+	TST	R0
+	BEQ	LB57BD		; Alien down
+	CMP	R0, #002
+	BEQ	LB57BU		; Alien up
+	CMP	R0, #004
+	BEQ	LB57BL		; Alien left
+	CMP	R0, #006
+	BEQ	LB57BR		; Alien right
+	BR	LB622
+;
+LB57BD:	JMP	LB59D		; Alien down
+LB57BU:	JMP	LB5C3		; Alien up
+LB57BL:	JMP	LB5E9		; Alien left
+LB57BR:	JMP	LB607		; Alien right
+;
+; Alien goes down
+LB59D:
+	CLRB	@#LDB86		; set Alien direction/orientation = down
+	CALL	LB713
+	TST	R0
+	BNE	LB59D1
+	JMP	LB737		; => Player injured by reflected bullet
+LB59D1:	CALL	LB6B0
+	CMP	R0, #001
+	BNE	LB622
+	MOVB	@#LDB7F, R0	; get Alien Y coord
+	ADD	#16., R0	; down one tile
+	MOVB	R0, @#LDB7F	; set Alien Y coord
+	INCB	@#LDB80		; inc Alien Y tile coord
+	BR	LB622
+;
+; Alien goes up
+LB5C3:
+	MOVB	#001, @#LDB86	; set Alien direction/orientation = up
+	CALL	LB713
+	TST	R0
+	BEQ	LB737		; => Player injured by reflected bullet
+	CALL	LB6B0
+	CMP	R0, #001
+	BNE	LB622
+	MOVB	@#LDB7F, R0	; get Alien Y coord
+	SUB	#16., R0	; up one tile
+	MOVB	R0, @#LDB7F	; set Alien Y coord
+	DECB	@#LDB80		; dec Alien Y tile coord
+	BR	LB622
+;
+; Alien goes left
+LB5E9:
+	MOVB	#002, @#LDB86	; set Alien direction/orientation = left
+	CALL	LB713
+	TST	R0
+	BEQ	LB737		; => Player injured by reflected bullet
+	CALL	LB6B0
+	CMP	R0, #001
+	BNE	LB622
+	DECB	@#LDB7E		; dec Alien X coord
+	BR	LB622
+;
+; Alien goes right
+LB607:
+	MOVB	#003, @#LDB86	; set Alien direction/orientation = right
+	CALL	LB713
+	TST	R0
+	BEQ	LB737		; => Player injured by reflected bullet
+	CALL	LB6B0
+	CMP	R0, #001
+	BNE	LB622
+	INCB	@#LDB7E		; inc Alien X coord
 ;
 LB622:
+	MOVB	@#LDB7E, R2	; get Alien X coord
+	ADD	R2, R2		; tile X cord -> 8px column number 0..23
+	MOVB	@#LDB7F, R3	; get Alien Y coord = row
+	CLR	R0		; clear draw flags
+	CALL	LB67B		; Get alien sprite address in DE
+	CALL	L9EDE		; Draw sprite DE at column H row L
+	MOV	#001, @#LDB82	; mark that we already have an Alien in the room
 ;TODO
-	RETURN
-
+LB64B:
+	CALL	LB8CA		; Is the Bullet hit the Alien?
+	TST	R0
+	BNE	LB64BR
+	CALL	LB71F		; yes => Killed the Alien
+LB64BR:	RETURN
+;
 LB653:
+	TSTB	@#LDB84		; Alien still alive?
+	BEQ	LB64BR		; dead => return
+	CALL	LB72E		; Get value at offset $2F in the room description
+	TST	R0		; do we have the alien?
+	BEQ	LB64BR		; we don't have it => return
+; We have an alien in the room description
+	CMPB	@#LDB81, #002	; Alien type = 2?
+	BNE	LB64BR		; no => return
+; Draw alien type 2
+	MOVB	@#LDB7E, R2	; get Alien X coord
+	ADD	R2, R2		; tile X cord -> 8px column number 0..23
+	MOVB	@#LDB7F, R3	; get Alien Y coord = row
+	SUB	#16., R3	; one tile up
+	CLR	R0		; clear draw flags
+	CALL	LB67B		; Get alien sprite address
+	JMP	L9EDE		; Draw sprite DE at column H row L
+;
+; Clear Alien tile phase
+LB676:
+	CLRB	@#LDB83		; clear Alien tile phase
+	RETURN
+;
+; Get alien sprite address
+; Returns DE = tile address, A = draw flags
+LB67B:
 ;TODO
 	RETURN
-
+LB685:
+;TODO
+	RETURN
+LB69D:
+;TODO
+LB6A0:
+;TODO
+	RETURN
+;
+LB6B0:
+;TODO
+	RETURN
+;
+LB6CD:
+;TODO
+	RETURN
+;
+LB6DD:
+;TODO
+	RETURN
 ;
 ; Get A = Alien position within the room
 LB6ED:
 ;TODO
 	RETURN
-
+; Get B=Alien Y tile coord, C=12 line width
+LB6FA:
+;TODO
+	RETURN
+;
+LB703:
+;TODO
+	RETURN
+;
+LB713:
+;TODO
+	RETURN
+; Killed the alien
+LB71F:
+	CLRB	@#LDB84		; set Alien not alive
+	CALL	LB8DC		; Clear all Bullet variables
+	INC	@#LDBC5		; inc Enemies Killed count
+	RETURN
 ;
 ; Get value at offset $2F in the room description
 ;   Returns: A = value
