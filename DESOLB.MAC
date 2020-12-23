@@ -63,8 +63,16 @@ L9E2E:
 ;
 ; Quit menu item selected
 L9E51:
-;TODO
-	RETURN
+	CALL	LBC7D		; Clear shadow screen and copy on ZX screen
+;TODO:	CALL	ScreenThemeNite
+	MOV	#30024, @#L86D7
+	MOV	#SQUIT, R3
+	CALL	LBEDE
+	CALL	SHOWSC
+	CALL	WTKEY
+	CALL	LBC7D		; Clear and show shadow screen
+;TODO:	CALL	ScreenThemeLite
+	JMP	LBA3D		; Return to Menu
 ;
 ; Put tile on the screen (NOT aligned to 8px column), 16x16 -> 16x16 on shadow screen
 ; Uses XOR operation so it is revertable.
@@ -744,7 +752,27 @@ LAC54:
 	MOVB	(R3), R1
 	MOVB	@#LDB75, R0	; Direction/orientation
 	SUB	R1, R0
-;TODO
+	BEQ	LAC541
+	JMP	LAADA		; => Show the screen, continue the game main loop
+LAC541:
+	CALL	LAE09		; Decode current room description to LDBF5
+	ADD	#10., R3	; offset in the room description
+	MOVB	(R3), R0
+	MOVB	R0, @#LDC89	; set as current item
+	CALL	LAE09		; Decode current room description to LDBF5 (again?)
+	ADD	#9., R3		; offset in the room description
+	MOVB	(R3), R0
+	CMP	#001, R0
+	BEQ	LAC97
+; Found dead body, no items on it
+	CALL	LAB28		; Show small message popup
+	CALL	LAB73		; Set penRow/penCol for small message popup
+	MOV	#SE0C3, R3	; "Another Dead Person"
+	CALL	LBEDE		; Show message char-by-char
+	MOV	#63022, @#L86D7	; Set penRow/penCol
+	MOV	#SE0C5, R3	; "Search Reveals Nothing"
+	CALL	LBEDE		; Show message char-by-char
+	JMP	LAD8C		; Show screen and wait for Escape key
 ; Found dead body with some item on it
 LAC97:
 	CALL	LAD4F		; Get inventory item flag for item number in LDC89
@@ -2180,8 +2208,9 @@ LB797:
 LB7AD:
 	CALL	LB87C		; Move the Bullet
 	CMP	R0, #001	; Empty cell?
-	BNE	LB8D6
-	MOVB	@#LDB89, R0	; get Bullet Y coord/line on the screen
+	BEQ	LB7AD1
+	JMP	LB8D6
+LB7AD1:	MOVB	@#LDB89, R0	; get Bullet Y coord/line on the screen
 	ADD	#16., R0	; down 16 rows
 	MOVB	R0, @#LDB89	; set Bullet Y coord/line on the screen
 	INCB	@#LDB8A		; inc Bullet Y coord in tiles
@@ -2190,8 +2219,9 @@ LB7AD:
 LB7C7:
 	CALL	LB87C		; Move the Bullet
 	CMP	R0, #001	; Empty cell?
-	BNE	LB8D6
-	MOVB	@#LDB89, R0	; get Bullet Y coord/line on the screen
+	BEQ	LB7C71
+	JMP	LB8D6
+LB7C71:	MOVB	@#LDB89, R0	; get Bullet Y coord/line on the screen
 	SUB	#16., R0
 	MOVB	R0, @#LDB89	; set Bullet Y coord/line on the screen
 	DECB	@#LDB8A		; dec Bullet Y coord in tiles
@@ -2200,8 +2230,9 @@ LB7C7:
 LB7E1:
 	CALL	LB87C		; Move the Bullet
 	CMP	R0, #001	; Empty cell?
-	BNE	LB8D6
-	DECB	@#LDB88		; dec bullet X coord in tiles
+	BEQ	LB7E11
+	JMP	LB8D6
+LB7E11:	DECB	@#LDB88		; dec bullet X coord in tiles
 	BR	LB805
 ; Bullet right
 LB7F3:
@@ -2281,26 +2312,49 @@ LB87C:
 ;
 ; For Bullet direction left: dec E, right: inc E
 LB89B:
-;TODO
+	MOVB	@#LDB8B, R0	; get Bullet Direction/orientation
+	CMP	R0, #002	; left?
+	BEQ	LB89B1
+	CMP	R0, #003	; right?
+	BEQ	LB8A9
+	RETURN
+LB89B1:	DEC	R2
+	RETURN
+LB8A9:	INC	R2
 	RETURN
 ;
 ; For Bullet direction up: dec B, down: inc B
 LB8AB:
-;TODO
+	MOVB	@#LDB8B, R0	; get Bullet Direction/orientation
+	BNE	LB8AB1
+	INC	R1		; one down
 	RETURN
+LB8AB1:	CMP	R0, #001	; left?
+	BNE	LB8ABR
+	DEC	R1		; one up
+LB8ABR:	RETURN
 ;
 ; Get A = Bullet position within the room
 LB8BB:
-;TODO
+	MOVB	@#LDB8A, R0	; get Bullet Y coord in tiles
+	MOVB	MUL12D(R0), R0	; * 12
+	MOVB	@#LDB88, R1	; get Bullet X coord in tiles
+	ADD	R1, R0
 	RETURN
 ;
 ; Is the Bullet hit the Alien?
 LB8CA:
-;TODO
+	CALL	LB6ED		; Get A = Alien position within the room
+	CALL	LB8BB		; Get A = Bullet position within the room
+	MOV	R0, R1
+	MOVB	@#LDB87, R0
+	SUB	R1, R0
+	RETURN
+;
 ; Bullet hit something
 LB8D6:
-;TODO
-
+	CALL	LB8DC		; Clear all Bullet variables
+	JMP	LB805
 ;
 ; Clear all Bullet variables
 LB8DC:
@@ -2346,9 +2400,26 @@ LB925:
 ;
 ; Switch Look / Shoot mode
 LB930:
-;TODO
+	TSTB	@#LDCF7		; Weapon slot
+	BNE	LB94C
+; Don't have a weapon
+	CALL	LB925
+	CALL	LAB28		; Show small message popup
+	MOV	#54054, @#L86D7	; Set penRow/penCol
+	MOV	#SE0D3, R3	; "You dont have a Weapon to equip!"
+	CALL	LBEDE		; Show message char-by-char
+	JMP	LAD8C		; Show screen and wait for Escape key
+LB94C:
+	TSTB	@#LDB7D		; look/shoot switch value
+	BNE	LB95C		; shoot mode => jump
+	MOVB	#001, @#LDB7D	; set look/shoot switch = Shoot
+	BR	LB960
+LB95C:
+	CLRB	@#LDB7D		; set look/shoot switch value = Look
+LB960:
+	MOVB	#150., @#LDC59	; set delay factor
+	CALL	LB2D0		; Delay
 	JMP	L9E2E		; Show the screen, continue the game main loop
-
 ;
 ; Display Health
 LB96B:
@@ -2722,7 +2793,20 @@ LBC8B:
 	MOVB	(R3), R1
 	MOVB	@#LDB75, R0	; Direction/orientation
 	SUB	R1, R0
-;TODO
+	BEQ	LBC8B1
+	JMP	LAADA
+LBC8B1:
+	CALL	LAB28		; Show small message popup
+	MOVB	#10., @#LDCF3	; Left margin size for text
+	MOVB	#14., @#LDCF4	; Line interval for text
+	CALL	LAE09		; Decode current room description to LDBF5
+	ADD	#19., R3	; offset in the room description
+	MOVB	(R3), R0
+	MOVB	R0, @#LDC87	; store RoomDesc[$13] value
+	MOVB	LDB90(R0), R0
+	BEQ	LBCD5		; not working yet? => jump
+	CALL	LBD69		; Set penRow/penCol = $580A
+	MOV	#SE12D, R3	; " It doesnt look like you can do anything else here"
 ; Show the message, show screen, wait for key, continue game main loop
 LBCC5:
 	CALL	LBEDE		; Show message char-by-char
@@ -2734,33 +2818,170 @@ LBCCB:
 	JMP	L9E2E		; Show the screen, continue the game main loop
 ;
 LBCD5:
-;TODO
+	MOVB	@#LDC87, R0	; get RoomDesc[$13] value - important object in the room
+	CMP	R0, #001	; the Generator
+	BEQ	LBCF6
+	CMP	R0, #002	; the Workstation
+	BEQ	LBCFF
+	CMP	R0, #004	; Life-Support System
+	BEQ	LBD4E
+	CMP	R0, #005	; Evacuation Deck re-pressure
+	BEQ	LBD57
+	CMP	R0, #006	; Guidance System
+	BEQ	LBD60
+	CMP	R0, #007	; the Pod
+	BEQ	LBD70
 ; RoomDesc[$13] == $01 - the Generator
 LBCF6:
-;TODO
+	CALL	LBD69		; Set penRow/penCol = $580A
+	MOV	#SE12F, R3	; "This Generator is damaged All of the panels are loose"
+	JMP	LBCC5		; Show the message/screen, wait for key, continue game main loop
 ; RoomDesc[$13] == $02 - the Workstation
 LBCFF:
-;TODO
+	TSTB	@#<LDB90+1>	; Generator working?
+	BNE	LBD11
+	CALL	LBD69		; Set penRow/penCol = $580A
+	MOV	#SE131, R3	; "This Workstation doesnt seem to have any power...?"
+	JMP	LBCC5		; Show the message/screen, wait for key, continue game main loop
+LBD11:
+	CALL	LAE09		; Decode current room description to LDBF5
+	ADD	#48., R3	; offset in the room description
+	MOVB	(R3), R0
+	MOVB	R0, @#LDC89	; set the current item
+	CALL	LBD69		; Set penRow/penCol = $580A
+	MOV	#SE133, R3	; "The Workstation has now successfully booted up"
+	CALL	LBEDE		; Show message char-by-char
+	CALL	SHOWSC		; Copy shadow screen to UKNC screen
+	CALL	LAB28		; Show small message popup
+LBD2B:
+	CALL	WTKEY		; WaitAnyKey
+	MOVB	#001, @#<LDB90+2>	; mark Workstation is used
+	MOVB	@#LDC89, R0	; get the current item number
+	MOVB	#001, LDB9C(R0)	; mark that we have the item now
+	CALL	LBD69		; Set penRow/penCol = $580A
+	MOV	#SE135, R3	; "The Workstation Ejected A Data Cartridge 2"
+	JMP	LBCC5		; Show the message/screen, wait for key, continue game main loop
 ; RoomDesc[$13] == $04 - Life-Support System
 LBD4E:
-;TODO
+	CALL	LBD69		; Set penRow/penCol = $580A
+	MOV	#SE13F, R3	; "The Life Support System needs Re-Configuring"
+	JMP	LBCC5		; Show the message/screen, wait for key, continue game main loop
 ; RoomDesc[$13] == $05 - Evacuation Deck re-pressurised
 LBD57:
-;TODO
+	CALL	LBD69		; Set penRow/penCol = $580A
+	MOV	#SE141, R3	; "AirLock Control & Re-Pressurisation Station"
+	JMP	LBCC5		; Show the message/screen, wait for key, continue game main loop
 ; RoomDesc[$13] == $06 - Guidance System
 LBD60:
-;TODO
+	CALL	LBD69		; Set penRow/penCol = $580A
+	MOV	#SE143, R3	; "This MainFrame is missing a Power Cell"
+	JMP	LBCC5		; Show the message/screen, wait for key, continue game main loop
 ; Set penRow/penCol = $580A
 LBD69:
 	MOV	#54012, @#L86D7	; Set penRow/penCol
 	RETURN
 ; RoomDesc[$13] == $07 - Pod
 LBD70:
-;TODO
+	MOVB	@#<LDB90+6>, R0	; does Guidance System working now
+	BEQ	LBD85		; yes => Flying away on the Pod
+	CALL	LBD69		; Set penRow/penCol = $580A
+	MOV	#SE145, R3	; "This Pod cant naviagate. Guidance System is offline"
+	JMP	LBCC5		; Show the message/screen, wait for key, continue game main loop
 ; Flying away on the Pod
 LBD85:
-;TODO
-
+	MOVB	#68., @#LDC59	; set delay factor
+	MOVB	#001, @#LDC85	; Use delay and copy screen in LBEDE
+	CLRB	@#LDCF3		; Left margin size for text
+	CLRB	@#LDBF4		; clear counter of achievements
+	MOVB	#14., @#LDCF4	; Line interval for text
+; Showing end-of-story screen
+	CALL	LBC7D		; Clear and show shadow screen
+;TODO:	CALL	ScreenThemeNite
+	CALL	LBC84		; ClearPenRowCol
+	MOV	#SE11B, R3	; "The onboard guidance system picks up a ...
+	CALL	LBEDE		; Show message char-by-char
+	CALL	WTKEY		; WaitAnyKey
+; Showing statistics screen
+	MOVB	#006, @#LDCF3	; Left margin size for text
+	CALL	CLSHAD		; ClearShadowScreen
+	MOV	#6014, @#L86D7	; Set penRow/penCol
+	MOV	#SE0A1, R3	; "Items Found (/24): Enemies Killed: PlayerDeaths: Awards:
+	CALL	LBEDE		; Show message char-by-char
+	CALL	LBC34		; Delay x20
+	MOV	#3212., R2
+	MOVB	@#LDBC7, R3	; get Items Found count
+	CALL	LB97D		; Draw 5-digit number HL at row/col DE, and show the screen
+	CALL	LBC34		; Delay x20
+	MOV	#15214, R2
+	MOV	@#LDBC5, R3	; get Enemies Killed count
+	CALL	LB97D		; Draw 5-digit number HL at row/col DE, and show the screen
+	CALL	LBC34		; Delay x20
+	MOV	#24214, R2
+	MOV	@#LDBC3, R3	; get Player Deaths count
+	CALL	LB97D		; Draw 5-digit number HL at row/col DE, and show the screen
+	CALL	LBC34		; Delay x20
+	CMPB	#20., @#LDBC7	; 20 or more?
+	BHIS	LBE06		; no => jump
+	MOV	#51014, @#L86D7	; Set penRow/penCol
+	MOV	#SE0AD, R3	; "Sherlock Holmes" (achievement)
+	CALL	LBEDE		; Show message char-by-char
+	INCB	@#LDBF4		; increase counter of achievements
+	BR	LBE12
+LBE06:
+	MOV	#51014, @#L86D7	; Set penRow/penCol
+	MOV	#SE0AB, R3	; "Sir Miss-A-Lot" (achievement)
+	CALL	LBEDE		; Show message char-by-char
+LBE12:
+	MOV	#50., R2
+	MOV	@#LDBC5, R3	; get Enemies Killed count
+	CMP	R2, R3		; Compare HL and DE
+	BHIS	LBE32		; less 50? => jump
+	MOV	#60014, @#L86D7	; Set penRow/penCol
+	MOV	#SE0B1, R3	; "Terminator" (achievement)
+	CALL	LBEDE		; Show message char-by-char
+	INCB	@#LDBF4		; increase counter of achievements
+	BR	LBE3E
+LBE32:
+	MOV	#60014, @#L86D7	; Set penRow/penCol
+	MOV	#SE0AF, R3	; "Running Scared"
+	CALL	LBEDE		; Show message char-by-char
+LBE3E:
+	TST	@#LDBC3		; Player deaths count = 0?
+	BNE	LBE5E
+	MOV	#67014, @#L86D7	; Set penRow/penCol
+	MOV	#SE0B5, R3	; "Survivor" (achievement)
+	CALL	LBEDE		; Show message char-by-char
+	INCB	@#LDBF4		; increase counter of achievements
+	BR	LBE6A
+LBE5E:				; Player deaths > 0
+	MOV	#67014, @#L86D7	; Set penRow/penCol
+	MOV	#SE0B3, R3	; "Over & Over Again" (achievement)
+	CALL	LBEDE		; Show message char-by-char
+LBE6A:
+	CALL	WTKEY		; WaitAnyKey
+	CALL	CLSHAD		; ClearShadowScreen
+	CMP	#003, @#LDBF4	; do we have all three achievements?
+	BNE	LBE8A		; no => skip extended ending
+; Extended ending
+	CLRB	@#LDCF3		; clear Left margin size for text
+	CALL	LBC84		; ClearPenRowCol
+	MOV	#SE11D, R3	; "System Alert triggered: ..."
+	CALL	LBEDE		; Show message char-by-char
+	BR	LBE9B
+LBE8A:
+	MOVB	#30., @#LDCF3	; Left margin size for text
+	MOV	#32024, @#L86D7	; Set penRow/penCol
+	MOV	#SE0A9, R3	; "Earn 3 Good Awards for an Extended Ending!"
+	CALL	LBEDE		; Show message char-by-char
+LBE9B:
+	CALL	WTKEY		; WaitAnyKey
+	CALL	CLSHAD		; ClearShadowScreen
+	MOV	#32024, @#L86D7	; Set penRow/penCol
+	MOV	#SE11F, R3	; "The End"
+	CALL	LBEDE		; Show message char-by-char
+	CALL	LBC34		; Delay x20
+	JMP	LBF6F		; The End
+;
 ; Draw string on the screen
 ;   R3 = String address
 LBEDE:

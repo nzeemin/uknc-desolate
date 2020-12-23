@@ -42,12 +42,13 @@ START::
 	CALL	CTITLE
 	CALL	CLSHAD			; очистка теневого экрана
 ; Запуск
-;	CALL	LBA07			; Show titles and go to Menu
+	CALL	LBA07			; Show titles and go to Menu
 
 ;	CALL	LB0A2		; Inventory
 ;	CALL	LBBEC		; Info menu item, show Controls
 ;	CALL	LBADE		; New game
-	CALL	LBB7E		; Game start
+;	CALL	LBB7E		; Game start
+;	CALL	LBD85		; Final
 ;	CALL	LBF6F		; The End
 ;	CALL	LBF81		; Credits
 ;	CALL	LAB28		; Small message popup
