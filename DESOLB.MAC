@@ -28,10 +28,10 @@ L9DDD1:
 	BEQ	L9DMNU
 	MOV	R0, @#KEYSTO	; store key pressed for the game loop end
 ;DEBUG
-	MOV	@#KEYSTO, R3
-	MOV	#73020, @#L86D7	; Set penRow/penCol
-	MOV	R0, R3
-	CALL	DRNUM5
+;	MOV	@#KEYSTO, R3
+;	MOV	#73020, @#L86D7	; Set penRow/penCol
+;	MOV	R0, R3
+;	CALL	DRNUM5
 L9DDDE:	JMP	LA8C6		; Draw the Player, then go to the Ending of main game loop
 ;
 L9DMDN: JMP	LA966		; 001 Move down
@@ -1034,32 +1034,24 @@ LAEBA:
 ;TODO:	CALL	WaitKeyUp	; Wait until no key pressed to prevent double-reads of the same key
 	MOVB	@#LDC82, R0	; get current selection
 	CMP	R0, #37.	; "Enter" sign?
-	BNE	LAEBA1
-	JMP	LAF14		; yes => Code entered, need to check it
-LAEBA1:	MOVB	@#LDC57, R0	; get Door Lock pos
+	BEQ	LAF14		; yes => Code entered, need to check it
+	MOVB	@#LDC57, R0	; get Door Lock pos
 	DEC	R0
 	CMP	R0, #001
 	BEQ	LAE99		; Return to Delay and wait for key in Door Lock
 	MOVB	R0, @#LDC57	; set Door Lock pos
 ; Move entered code digits higher
-	MOV	#3, R1
-	MOV	#LDC8D, R3
-	INC	R3
-LAED4:
-	PUSH	R3
-	MOVB	(R3), R0
-	DEC	R3
-	MOVB	R0, (R3)
-	POP	R3
-	INC	R3
-	SOB	R1, LAED4
-	MOV	#<LDC8D+3>, R3	; Buffer for entering access code +3
+	MOV	#<LDC8D+1>, R3
+	MOV	#LDC8D, R2
+	MOVB	(R3)+, (R2)+
+	MOVB	(R3)+, (R2)+
+	MOVB	(R3)+, (R2)+
 	MOVB	@#LDC82, R0	; get current selection
-	MOVB	R0, (R3)
+	MOVB	R0, @#<LDC8D+3>	; put in Buffer for entering access code +3
 ; Show four tiles with the entered code
 	CALL	DLOKSH		; DoorLockDisplayCode
 	CALL	SHOWSC		; Copy shadow screen to UKNC screen
-	JMP	LAE99		; Return to Delay and wait for key in Door Lock
+	BR	LAE99		; Return to Delay and wait for key in Door Lock
 ;
 ; Show four tiles with the entered code
 ; DoorLockDisplayCode:
@@ -1067,7 +1059,8 @@ DLOKSH:
 	MOV	#LDC8D, R3	; Buffer for entering access code
 	MOV	#4, R1
 LAEEF:
-	MOVB	(R3), R4
+	MOVB	(R3)+, R4
+	PUSH	R3
 	ADD	R4, R4
 	ADD	R4, R4
 	ADD	R4, R4
@@ -1080,7 +1073,10 @@ LAEEF:
 	ADD	R2, R2
 	ADD	R2, R2		; * 8 = col
 	MOV	#16., R3	; row
-	CALL	DRTIL2
+	PUSH	R1
+	CALL	DRTIL2		; Draw tile R4 at col R2 row R3
+	POP	R1
+	POP	R3
 	ADD	#2, R1
 	CMP	R1, #12.
 	BNE	LAEEF
@@ -1303,12 +1299,13 @@ LB0A2:
 	CLRB	@#LDC5A		; clear Inventory items count
 	CLRB	@#LDCF8
 	MOVB	#16., @#LDC83	; set X pos
-	MOVB	#24., @#LDC84	; set Y pos
+	MOVB	#36., @#LDC84	; set Y pos
 	MOV	#13060, @#L86D7	; Set penRow/penCol
 	MOV	#SE0BB, R3	; "- INVENTORY -"
-	CALL	DRSTR
-	MOV	#LDB9C, R3
-	MOV	#29., R1
+	CALL	DRSTR		; DrawString
+; Draw intentory items
+	MOV	#LDB9C, R3	; Inventory table address
+	MOV	#29., R1	; 29 items
 LB0E0:				; loop by B
 	PUSH	R3
 	MOVB	(R3), R0	; get item
@@ -1317,6 +1314,7 @@ LB0E0:				; loop by B
 LB0E01:	POP	R3
 	INC	R3
 	SOB	R1, LB0E0
+; Draw empty slots
 	MOV	#30., R1	; 30 placeholders
 	MOVB	@#LDC5A, R0	; get Inventory items count
 	SUB	R0, R1		; R1 = count of empty slots
@@ -1327,21 +1325,14 @@ LB0F3:
 	POP	R1
 	BEQ	LB119		; last item => exit the loop
 	DEC	R1
-	MOV	#LDC5B, R3	; Inventory list
 	MOVB	@#LDC5A, R2	; get Inventory items count
-	ADD	R2, R3		; R3 = addr of the empty slot
-	MOVB	#143, (R3)	; empty slot marker
+	MOVB	#143, LDC5B(R2)	; empty slot marker -> inventory slot
 	INCB	@#LDC5A		; increase Inventory items count
 	BR	LB0F3
 LB119:
-	JMP	LB1AA		; go to Inventory screen loop
+	BR	LB1AA		; go to Inventory screen loop
 ;
-LB11C:
-	MOVB	#16., @#LDC83	; set X pos
-	MOVB	@#LDC84, R0
-	ADD	#20., R0	; 20 lines lower
-	MOVB	R0, @#LDC84	; set Y pos
-	RETURN
+;NOTE LB11C routine moved into LB15D
 ;
 LB12A:
 	PUSH	R1
@@ -1355,7 +1346,7 @@ LB12A:
 	ADD	R4, R4
 	ADD	R4, R4
 	ADD	R4, R4		; * 32
-	ADD	#<TILES3+64>, R4
+	ADD	#<TILES3+64.>, R4
 	CALL	LB15D		; Draw tile by XOR then go to next position
 	MOV	#LDC5B, R3	; Inventory items
 	MOVB	@#LDC5A, R0	; get Inventory items count
@@ -1368,19 +1359,24 @@ LB12A1:	INCB	@#LDC5A		; increase Inventory items count
 	POP	R1
 	RETURN
 ;
-; Draw tile by XOR using X = (LDC83), Y = (LDC84), then go to next position
+; Inventory - Draw tile by XOR using X = (LDC83), Y = (LDC84),
+; then go to next position
 LB15D:
 	MOVB	@#LDC84, R3	; get Y pos for Inventory
 	CLR	R2
 	BISB	@#LDC83, R2	; get X pos for Inventory
-	MOV	#16., R1
-	CALL	L9E5F		; Draw tile by XOR operation
+	MOV	#16., R1	; tile height
+	CALL	L9E5F		; Draw tile by XOR; R3 = Y; R2 = X
 	MOVB	@#LDC83, R0	; get X pos
-	ADD	#16., R0	; increase X
+	ADD	#16., R0	; X to the next position
 	MOVB	R0, @#LDC83	; set X pos
-	CMP	R0, #176.	;
+	CMPB	R0, #176.	; end of the row?
 	BNE	LB15DR
-	CALL	LB11C
+; Move (X,Y) to the next row (was: LB11C routine)
+	MOVB	#16., @#LDC83	; set X pos
+	MOVB	@#LDC84, R0
+	ADD	#20., R0	; 20 lines lower
+	MOVB	R0, @#LDC84	; set Y pos
 LB15DR:	RETURN
 ;
 ; Display screen from tiles with Tileset2
@@ -1427,7 +1423,7 @@ CLINVM:
 	POP	R3
 	RETURN
 ;
-; Inventory
+; Inventory screen loop
 LB1AA:
 	CLRB	@#LDC82		; clear Inventory current
 	MOVB	#16., @#LDC83	; set X pos
@@ -1457,10 +1453,10 @@ LB1C1A:	CMP	R0, #005	; Look/shoot key?
 	BEQ	LB1C14
 	BR	LB1C1		; continue the loop
 ;
-LB1C11:	JMP	INVKDN		; Inventory Down key
-LB1C12:	JMP	LB1FE		; Inventory Left key
-LB1C13:	JMP	LB214		; Inventory Right key
-LB1C14:	JMP	INVKUP		; Inventory Up key
+LB1C11:	BR	INVKDN		; Inventory Down key
+LB1C12:	BR	LB1FE		; Inventory Left key
+LB1C13:	BR	LB214		; Inventory Right key
+LB1C14:	BR	INVKUP		; Inventory Up key
 LB1C15:	JMP	LB307		; Inventory Select key
 ;
 LB1DB:
@@ -1469,11 +1465,11 @@ LB1DB:
 LB1E2:
 	CALL	LB295		; Draw Inventory selection square
 	DECB	@#LDC82		; dec Inventory current - left
-	JMP	LB1DB		; Print string LDCF9 and Prepare item description string
+	BR	LB1DB		; Print string LDCF9 and Prepare item description string
 LB1F0:
 	CALL	LB295		; Draw Inventory selection square
 	INCB	@#LDC82		; inc Inventory current - right
-	JMP	LB1DB		; Print string LDCF9 and Prepare item description string
+	BR	LB1DB		; Print string LDCF9 and Prepare item description string
 ; Inventory Down key pressed
 INVKDN:
 	CALL	LB295		; Draw Inventory selection square
@@ -1501,7 +1497,7 @@ INVKUP:
 	MOVB	R0, @#LDC82	; set Inventory current
 INVKU1:
 	CALL	LB1DB		; Print string LDCF9 and Prepare item description string
-	JMP	LB1BB		; continue Inventory loop
+	BR	LB1BB		; continue Inventory loop
 ; Inventory Left key pressed
 LB1FE:                   	; Left key pressed
 	MOVB	@#LDC83, R0	; get X pos
@@ -1511,7 +1507,7 @@ LB1FE:                   	; Left key pressed
 	MOVB	@#LDC83, R0	; get X pos
 	SUB	#16., R0
 	MOVB	R0, @#LDC83	; set X pos
-	JMP	LB1BB		; continue Inventory loop
+	BR	LB1BB		; continue Inventory loop
 ; Inventory Right key pressed
 LB214:                    	; Right key pressed
 	MOVB	@#LDC83, R0	; get X pos
@@ -1520,8 +1516,8 @@ LB214:                    	; Right key pressed
 	CALL	LB1F0		; Draw square and move right
 	MOVB	@#LDC83, R0	; get X pos
 	ADD	#16., R0
-	MOVB	R0, @#LDC84	; set Y pos
-	JMP	LB1BB		; continue Inventory loop
+	MOVB	R0, @#LDC83	; set X pos
+	BR	LB1BB		; continue Inventory loop
 LB22A:
 	MOVB	@#LDC84, R0	; get Y pos
 	CMP	R0, #76.	; last row?
@@ -1530,10 +1526,9 @@ LB22A:
 	MOVB	@#LDC84, R0	; get Y pos
 	ADD	#20., R0
 	MOVB	R0, @#LDC84	; set Y pos
-	MOVB	@#LDC83, R0	; get X pos
-	ADD	#16., R0
-	MOVB	R0, @#LDC84	; set Y pos
+	MOVB	#16., @#LDC83	; set X pos
 	JMP	LB1BB		; continue Inventory loop
+; Inventory - Put selection on the 1st item
 LB245:
 	CALL	LB295		; Draw Inventory selection square
 	MOVB	#16., @#LDC83	; set X pos
