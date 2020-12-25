@@ -63,11 +63,11 @@ L9E2E:
 ;
 ; Quit menu item selected
 L9E51:
-	CALL	LBC7D		; Clear shadow screen and copy on ZX screen
+	CALL	LBC7D		; Clear shadow screen and copy on UKNC screen
 ;TODO:	CALL	ScreenThemeNite
-	MOV	#30024, @#L86D7
-	MOV	#SQUIT, R3
-	CALL	LBEDE
+	CALL	DRSTR3
+	.WORD	30024		; penRow/penCol
+	.WORD	SQUIT
 	CALL	SHOWSC
 	CALL	WTKEY
 	CALL	LBC7D		; Clear and show shadow screen
@@ -259,7 +259,11 @@ LA0F15:	CMP	#111, R0	; Inventory key? 'I'
 	BNE	LA0F16
 	MOV	#006, R0
 	RETURN
-LA0F16:	CMP	#120, R0	; Menu key? 'P'
+LA0F16:	CMP	#121, R0
+	BNE	LA0F17
+	MOV	#010, R0
+	RETURN
+LA0F17:	CMP	#120, R0	; Menu key? 'P'
 	BNE	LA0F18
 	MOV	#15., R0
 	RETURN
@@ -648,15 +652,12 @@ LAB3F1:	CMPB	@#LDB79, #27.	; Room #27 ?
 	MOVB	#22., @#LDCF3	; Left margin size for text
 	MOVB	#14., @#LDCF4	; Line interval for text
 	CALL	LAB28		; Show small message popup
-	CALL	LAB73		; Set penRow/penCol for small message popup
-	MOV	#SE0D5, R3	; "It is not wise to proceed without a weapon."
-	CALL	LBEDE		;  Show message char-by-char
+	CALL	DRSTR3		; Draw string with LBEDE and params after the call
+	.WORD	54020		; penRow/penCol
+	.WORD	SE0D5		; "It is not wise to proceed without a weapon."
 	JMP	LAD8C		; Show screen and wait for Escape key
 ;
-; Set penRow/penCol for small message popup
-LAB73:
-	MOV	#54020, @#L86D7	; Set penRow/penCol
-	RETURN
+;NOTE: Procedure LAB73 removed, not used anymore
 ;
 LAB7A:
 	MOVB	#001, @#LDC8A	; Direction to other room = down
@@ -702,13 +703,14 @@ LABBE1:	CMPB	@#LDB79, #33.	; Room #33?
 	MOVB	#16., @#LDCF3	; Left margin size for text
 	MOVB	#14., @#LDCF4	; Line interval for text
 	CALL	LAB28		; Show small message popup
-	MOV	#54014, @#L86D7	; Set penRow/penCol
-	MOV	#SE0D7, R3	; "You cant enter that sector Life-Support is offline."
-	CALL	LBEDE		; Show message char-by-char
+	CALL	DRSTR3		; Draw string with LBEDE and params after the call
+	.WORD	54014		; penRow/penCol
+	.WORD	SE0D7		; "You cant enter that sector Life-Support is offline."
 	JMP	LAD8C		; Show screen and wait for Escape key
 LABF7:
 	MOVB	#003, @#LDC8A	; Direction to other room = left
 	CALL	LAE09		; Decode current room description to LDBF5
+	MOV	#30., R2	; offset in the room description
 	JMP	LAB85
 ;
 ; Found action point at room description offset $21..$22 (possibly an error, should be $20-$21)
@@ -727,9 +729,9 @@ LAC051:	CMPB	@#LDB79, #69.	; Room #69?
 	MOVB	#12., @#LDCF3	; Left margin size for text
 	MOVB	#14., @#LDCF4	; Line interval for text
 	CALL	LAB28		; Show small message popup
-	MOV	#54024, @#L86D7	; Set penRow/penCol
-	MOV	#SE0D9, R3	; "You cant enter until the AirLock is re-pressurised"
-	CALL	LBEDE		; Show message char-by-char
+	CALL	DRSTR3		; Draw string with LBEDE and params after the call
+	.WORD	54024		; penRow/penCol
+	.WORD	SE0D9		; "You cant enter until the AirLock is re-pressurised"
 	JMP	LAD8C		; Show screen and wait for Escape key
 LAC3E:
 	MOVB	#004, @#LDC8A	; Direction to other room = right
@@ -766,12 +768,12 @@ LAC541:
 	BEQ	LAC97
 ; Found dead body, no items on it
 	CALL	LAB28		; Show small message popup
-	CALL	LAB73		; Set penRow/penCol for small message popup
-	MOV	#SE0C3, R3	; "Another Dead Person"
-	CALL	LBEDE		; Show message char-by-char
-	MOV	#63022, @#L86D7	; Set penRow/penCol
-	MOV	#SE0C5, R3	; "Search Reveals Nothing"
-	CALL	LBEDE		; Show message char-by-char
+	CALL	DRSTR3		; Draw string with LBEDE and params after the call
+	.WORD	54020		; penRow/penCol
+	.WORD	SE0C3		; "Another Dead Person"
+	CALL	DRSTR3		; Draw string with LBEDE and params after the call
+	.WORD	63022		; penRow/penCol
+	.WORD	SE0C5		; "Search Reveals Nothing"
 	JMP	LAD8C		; Show screen and wait for Escape key
 ; Found dead body with some item on it
 LAC97:
@@ -782,27 +784,28 @@ LAC97:
 LAC971:	MOVB	@#LDB79, R0	; Get the room number
 	BEQ	LACC5		; yes => Small message popup "OMG! This Person Is DEAD! What Happened Here!?!"
 	CALL	LAB28		; Show small message popup
-	CALL	LAB73		; Set penRow/penCol for small message popup
-	MOV	#SE0C7, R3	; " This Person is Dead . . ."
-	CALL	LBEDE		; Show message char-by-char
+	CALL	DRSTR3		; Draw string with LBEDE and params after the call
+	.WORD	54020		; penRow/penCol
+	.WORD	SE0C7		; "This Person is Dead . . ."
 	CALL	LACB8		; Show arrow sign as prompt to continue
 	JMP	LAD00
 ;
 ; Show arrow sign in bottom-right corner, as a prompt to continue
 LACB8:
-	MOV	#063260, @#L86D7	; Set penRow/penCol
-	MOV	#SE0B9, R3	; String with arrow down sign
-	JMP	LBEDE		; Show message char-by-char
+	CALL	DRSTR3		; Draw string with LBEDE and params after the call
+	.WORD	063260		; penRow/penCol
+	.WORD	SE0B9		; String with arrow down sign
+	RETURN
 ;
 ; Small message popup "OMG! This Person Is DEAD! What Happened Here!?!"
 LACC5:
 	CALL	LAB28		; Show small message popup
-	CALL	LAB73		; Set penRow/penCol for small message popup
-	MOV	#SE0BF, R3
-	CALL	LBEDE		; Show message char-by-char
-	MOV	#63022, @#L86D7	; Set penRow/penCol
-	MOV	#SE0C1, R3	; "What Happened Here!?!"
-	CALL	LBEDE		; Show message char-by-char
+	CALL	DRSTR3		; Draw string with LBEDE and params after the call
+	.WORD	54020		; penRow/penCol
+	.WORD	SE0BF
+	CALL	DRSTR3		; Draw string with LBEDE and params after the call
+	.WORD	63022		; penRow/penCol
+	.WORD	SE0C1		; "What Happened Here!?!"
 	CALL	LACB8		; Show arrow sign as prompt to continue
 	JMP	LAD00
 ;
@@ -826,19 +829,19 @@ LACF6:
 ; Get item found on the dead body
 LAD00:
 	CALL	LACF6		; Show screen, wait for any key, show small message popup
-	MOV	#54026, @#L86D7	; Set penRow/penCol
-	MOV	#SE0C9, R3	; "They Seem To Be Holding"
-	CALL	LBEDE		; Show message char-by-char
-	MOV	#63076, @#L86D7	; Set penRow/penCol
-	MOV	#SE0CB, R3	; "Something"
-	CALL	LBEDE		; Show message char-by-char
+	CALL	DRSTR3		; Draw string with LBEDE and params after the call
+	.WORD	54026		; penRow/penCol
+	.WORD	SE0C9		; "They Seem To Be Holding"
+	CALL	DRSTR3		; Draw string with LBEDE and params after the call
+	.WORD	63076		; penRow/penCol
+	.WORD	SE0CB		; "Something"
 	INCB	@#LDBC7		; increase Items Found count
 LAD22:
 	CALL	LACB8		; Show arrow sign in bottom-right corner
 	CALL	LACF6		; Show screen, wait for any key, show small message popup
-	MOV	#54060, @#L86D7	; Set penRow/penCol
-	MOV	#SE0CF, R3	; "You Picked Up A"
-	CALL	LBEDE		; Show message char-by-char
+	CALL	DRSTR3		; Draw string with LBEDE and params after the call
+	.WORD	54060		; penRow/penCol
+	.WORD	SE0CF		; "You Picked Up A"
 	MOV	#63022, @#L86D7	; Set penRow/penCol
 	CALL	LAE19		; Get inventory item description string
 	CALL	LBEDE		; Show message char-by-char
@@ -866,9 +869,9 @@ LAD5B:
 	BNE	LAD5B1
 	JMP	LAADA		; yes => Show the screen, continue the game main loop
 LAD5B1:	CALL	LAB28		; Show small message popup
-	MOV	#54026, @#L86D7	; Set penRow/penCol
-	MOV	#SE0CD, R3	; " Hey Whats This . . . ?"
-	CALL	LBEDE		; Show message char-by-char
+	CALL	DRSTR3		; Draw string with LBEDE and params after the call
+	.WORD	54026		; penRow/penCol
+	.WORD	SE0CD		; " Hey Whats This . . . ?"
 	INCB	@#LDBC7		; increase Items Found count
 	JMP	LAD22
 ;
@@ -894,17 +897,17 @@ LADA9:
 LADA91:
 	CALL	LAB28		; Show small message popup
 	MOVB	#001, @#LDCF7	; We've got the weapon
-	MOV	#54034, @#L86D7	; Set penRow/penCol
-	MOV	#SE0CD, R3	; "Hey Whats This  .  .  . ?"
-	CALL	LBEDE		; Show message char-by-char
+	CALL	DRSTR3		; Draw string with LBEDE and params after the call
+	.WORD	54034		; penRow/penCol
+	.WORD	SE0CD		; "Hey Whats This  .  .  . ?"
 	CALL	LACB8		; Show arrow sign in bottom-right corner
 	CALL	LACF6		; Show screen, wait for any key, show small message popup
-	MOV	#54060, @#L86D7	; Set penRow/penCol
-	MOV	#SE0CF, R3	; "You Picked Up A"
-	CALL	LBEDE		; Show message char-by-char
-	MOV	#63054, @#L86D7	; Set penRow/penCol
-	MOV	#SE0B7, R3	; "Ion Phaser"
-	CALL	LBEDE		; Show message char-by-char
+	CALL	DRSTR3		; Draw string with LBEDE and params after the call
+	.WORD	54060		; penRow/penCol
+	.WORD	SE0CF		; "You Picked Up A"
+	CALL	DRSTR3		; Draw string with LBEDE and params after the call
+	.WORD	63054		; penRow/penCol
+	.WORD	SE0B7		; "Ion Phaser"
 	BR	LAD8C		; Show screen and wait for Escape key
 ;
 ; Decode current room to LDBF5
@@ -975,9 +978,9 @@ LAE3D:
 	CALL	LB09B		; Preparing to draw string with the prompt
 	MOV	#SE0DD, R3	; "Door Locked"
 	CALL	LBEDE		; Show message char-by-char
-	MOV	#42012, @#L86D7	; Set penRow/penCol
-	CALL	LAFFE		; Get "Access code level N required" string by access level in DC8C
-	CALL	LBEDE		; Show message HL char-by-char
+	CALL	DRSTR3		; Draw string with LBEDE and params after the call
+	.WORD	42012		; penRow/penCol
+	.WORD	LAFFE		; Get "Access code level N required" string by access level in DC8C
 	MOVB	#37., @#LDC82	; set current item number - "Enter" sign
 	MOVB	#160., @#LDC83	; set X pos
 	MOVB	#96., @#LDC84	; set Y pos
@@ -1238,23 +1241,23 @@ LB03E:
 	MOVB	#48., @#LDB77	; set Y pixel coord
 	CLRB	@#LDB75		; Direction/orientation = down
 	MOVB	#3., @#LDB78	; set Y tile coord = 3
-	JMP	LB02E
+	BR	LB02E
 ; Going to the next room - up
 LB04F:
 	MOVB	#96., @#LDB77	; set Y pixel coord
 	MOVB	#001, @#LDB75	; Direction/orientation = up
 	MOVB	#6., @#LDB78	; set Y tile coord = 6
-	JMP	LB02E
+	BR	LB02E
 ; Going to the next room - left
 LB061:
 	MOVB	#10., @#LDB76	; set X tile coord = 10
 	MOVB	#002, @#LDB75	; Direction/orientation = left
-	JMP	LB02E
+	BR	LB02E
 ; Going to the next room - right
 LB06E:
 	MOVB	#1., @#LDB76	; set X tile coord = 1
 	MOVB	#003, @#LDB75	; Direction/orientation = right
-	JMP	LB02E
+	BR	LB02E
 ;
 ; Decrease Health by 4, restore Y coord
 LB07B:
@@ -1868,7 +1871,7 @@ LB51F:
 LB529:
 	TSTB	R0
 	BEQ	LB529R		; 0 = Data cartridge reader
-	SUB	#11., R0
+	SUB	#17., R0
 	BHIS	LB529R
 	MOV	#001, R0	; Data cartridge
 LB529R:	RETURN
@@ -2400,9 +2403,9 @@ LB930:
 ; Don't have a weapon
 	CALL	LB925
 	CALL	LAB28		; Show small message popup
-	MOV	#54054, @#L86D7	; Set penRow/penCol
-	MOV	#SE0D3, R3	; "You dont have a Weapon to equip!"
-	CALL	LBEDE		; Show message char-by-char
+	CALL	DRSTR3		; Draw string with LBEDE and params after the call
+	.WORD	54054		; penRow/penCol
+	.WORD	SE0D3		; "You dont have a Weapon to equip!"
 	JMP	LAD8C		; Show screen and wait for Escape key
 LB94C:
 	TSTB	@#LDB7D		; look/shoot switch value
@@ -2418,7 +2421,12 @@ LB960:
 ;
 ; Display Health
 LB96B:
-;TODO: ;DEBUG: Show room number at the bottom-left
+; Cheat: Show room number at the bottom-left
+.IF NE CHROMN
+	MOV	#73020, @#L86D7	; Set penRow/penCol
+	MOVB	@#LDB79, R3	; Get the room number
+	CALL	DRNUM3
+.ENDC
 	MOV	#454, @#L86D7	; Set penRow/penCol
 	MOV	@#LDB7A, R3	; get Health value
 	JMP	DRNUM3		; Show 3-digit decimal number R3
@@ -2428,7 +2436,7 @@ LB96B:
 LB97D:
 	MOV	R2, @#L86D7	; set penRow/penCol
 	CALL	DRNUM5
-	JMP	SHOWSC		; Copy shadow screen to ZX screen
+	JMP	SHOWSC		; Copy shadow screen to UKNC screen
 ;
 ; Decrease Health
 LB994:
@@ -2448,9 +2456,9 @@ LB9A2:
 	MOVB	#32., @#LDCF3	; Left margin size for text
 	MOVB	#14., @#LDCF4	; Line interval for text
 	CALL	LAB28		; Show small message popup
-	MOV	#54016, @#L86D7	; Set penRow/penCol
-	MOV	#SE0BD, R3	; "The Desolate has claimed your life too . . ."
-	CALL	LBEDE		; Show message char-by-char
+	CALL	DRSTR3		; Draw string with LBEDE and params after the call
+	.WORD	54016		; Set penRow/penCol
+	.WORD	SE0BD		; "The Desolate has claimed your life too . . ."
 	CALL	LB9D6		; Clear player variables
 	INC	@#LDBC3		; increase Player deaths count
 LB9C9:
@@ -2494,15 +2502,15 @@ LB9F14:	DEC	R3
 LBA07:
 	MOVB	#68., @#LDC59	; set delay factor
 	MOVB	#1, @#LDC85	; Use delay and copy screen in LBEDE
-	MOV	#35036, @#L86D7	; Set penRow/penCol
-	MOV	#SE09D, R3	; "MaxCoderz Presents"
-	CALL	LBEDE		; Show message char-by-char
+	CALL	DRSTR3		; Draw string with LBEDE and params after the call
+	.WORD	35036		; penRow/penCol
+	.WORD	SE09D		; "MaxCoderz Presents"
 	CALL	LBA81		; Delay x40
 	CALL	LBC7D		; Clear shadow screen and copy to UKNC screen
 	CALL	LBC34		; Delay x20
-	MOV	#35056, @#L86D7 ; Set penRow/penCol
-	MOV	#SE09F, R3	; "a tr1p1ea game"
-	CALL	LBEDE		; Show message char-by-char
+	CALL	DRSTR3		; Draw string with LBEDE and params after the call
+	.WORD	35056	 	; penRow/penCol
+	.WORD	SE09F		; "a tr1p1ea game"
 	CALL	LBA81		; Delay x40
 	CALL	LBC7D		; Clear shadow screen and copy to UKNC screen
 	CALL	LBC34		; Delay x20
@@ -2539,6 +2547,7 @@ LBA3D:
 	BEQ	LBA3D4
 	CMP	R0, #001	; Down key
 	BEQ	LBA3D1
+	INC	@#RANDSD	; Change random seed
 	BR	LBA3D		; Return to main Menu
 ;
 LBA3D1: JMP	LBBDC		; Menu down
@@ -2578,9 +2587,9 @@ LBAB2:
 	BEQ	LBADE		; no => New Game
 	CALL	LB925
 	CALL	LAB28		; Show small message popup
-	MOV	#54016, @#L86D7	; Set penRow/penCol
-	MOV	#SE0A3, R3	; "OverWrite Current Game?"
-	CALL	LBEDE		; Show message char-by-char
+	CALL	DRSTR3		; Draw string with LBEDE and params after the call
+	.WORD	54016		; penRow/penCol
+	.WORD	SE0A3		; "OverWrite Current Game?"
 	CALL	SHOWSC		; Copy shadow screen to UKNC screen
 LBACE:
 	CALL	LA0F1		; Scan keyboard
@@ -2631,23 +2640,23 @@ LBADE5:	CLRB	(R3)+		; Clear 4 flags
 	MOVB	#1, @#LDC85	; Use delay and copy screen in LBEDE
 	MOVB	#14., @#LDCF4	; set Line interval for text
 	CLRB	@#LDCF3		; clear Left margin size for text
-	MOV	#35024, @#L86D7	; Set penRow/penCol
-	MOV	#SE115, R3	; "In the Distant Future . . ."
-	CALL	LBEDE		; Show message char-by-char
+	CALL	DRSTR3		; Draw string with LBEDE and params after the call
+	.WORD	35024		; penRow/penCol
+	.WORD	SE115		; "In the Distant Future . . ."
 	CALL	LBA81		; Delay x40
 	CALL	LBC7D		; Clear shadow screen and copy to UKNC screen
 	CALL	LBA81		; Delay x40
-	CLR	@#L86D7		; Set zero penRow/penCol
-	MOV	#SE117, R3	; "'The Desolate' Space Cruiser leaves orbit. ...
-	CALL	LBEDE		; Show message char-by-char
-	MOV	#71266, @#L86D7	; Set penRow/penCol
-	MOV	#SE0B9, R3	; String with arrow down sign
-	CALL	LBEDE		; Show message char-by-char
+	CALL	DRSTR3		; Draw string with LBEDE and params after the call
+	.WORD	000000		; zero penRow/penCol
+	.WORD	SE117		; "'The Desolate' Space Cruiser leaves orbit. ...
+	CALL	DRSTR3		; Draw string with LBEDE and params after the call
+	.WORD	71266		; penRow/penCol
+	.WORD	SE0B9		; String with arrow down sign
 	CALL	WTKEY		; Wait for any key
 	CALL	CLSHAD		; ClearShadowScreen
-	CLR	@#L86D7		; Set zero penRow/penCol
-	MOV	#SE119, R3	; "The ship sustains heavy damage. ...
-	CALL	LBEDE		; Show message char-by-char
+	CALL	DRSTR3		; Draw string with LBEDE and params after the call
+	.WORD	000000		; Set zero penRow/penCol
+	.WORD	SE119		; "The ship sustains heavy damage. ...
 	CALL	WTKEY		; Wait for any key
 ;
 ; Game start
@@ -2717,9 +2726,9 @@ LBBEC:
 	MOV	#013074, @#L86D7  ; Set penRow/penCol
 	MOV	#SE0A5, R3	; "- Controls -"
 	CALL	DRSTR		; Show message char-by-char
-	MOV	#022012, @#L86D7  ; Set penRow/penCol
-	MOV	#SE0A7, R3	; "2nd = Look / Shoot Alpha = Inventory ..."
-	CALL	LBEDE		; Show message char-by-char
+	CALL	DRSTR3		; Draw string with LBEDE and params after the call
+	.WORD	022012		; penRow/penCol
+	.WORD	SE0A7		; "2nd = Look / Shoot Alpha = Inventory ..."
 	CALL	SHOWSC		; Copy shadow screen to UKNC screen
 	CALL	LADA1		; Wait for Escape key
 	JMP	LBA3D		; Return to Menu
@@ -2746,7 +2755,7 @@ LBC45:
 	PUSH	R3
 	CMP	R0, #36.	; tile number for '-' sign
 	BEQ	LBC64
-	ADD	#48., R0	; from tile number to '0'..'9' char
+	ADD	#22., R0	; from tile number to '0'..'9' char
 LBC53:	CALL	DRCHAR
 	POP	R3
 	POP	R1
@@ -2800,10 +2809,10 @@ LBC8B1:
 	MOVB	R0, @#LDC87	; store RoomDesc[$13] value
 	MOVB	LDB90(R0), R0
 	BEQ	LBCD5		; not working yet? => jump
-	CALL	LBD69		; Set penRow/penCol = $580A
 	MOV	#SE12D, R3	; " It doesnt look like you can do anything else here"
-; Show the message, show screen, wait for key, continue game main loop
+; Show the message R3, show screen, wait for key, continue game main loop
 LBCC5:
+	MOV	#54012, @#L86D7	; Set penRow/penCol = $580A
 	CALL	LBEDE		; Show message char-by-char
 	CALL	SHOWSC		; Copy shadow screen to UKNC screen
 LBCCB:
@@ -2828,24 +2837,22 @@ LBCD5:
 	BEQ	LBD70
 ; RoomDesc[$13] == $01 - the Generator
 LBCF6:
-	CALL	LBD69		; Set penRow/penCol = $580A
 	MOV	#SE12F, R3	; "This Generator is damaged All of the panels are loose"
-	JMP	LBCC5		; Show the message/screen, wait for key, continue game main loop
+	BR	LBCC5		; Show the message/screen, wait for key, continue game main loop
 ; RoomDesc[$13] == $02 - the Workstation
 LBCFF:
 	TSTB	@#<LDB90+1>	; Generator working?
 	BNE	LBD11
-	CALL	LBD69		; Set penRow/penCol = $580A
 	MOV	#SE131, R3	; "This Workstation doesnt seem to have any power...?"
-	JMP	LBCC5		; Show the message/screen, wait for key, continue game main loop
+	BR	LBCC5		; Show the message/screen, wait for key, continue game main loop
 LBD11:
 	CALL	LAE09		; Decode current room description to LDBF5
 	ADD	#48., R3	; offset in the room description
 	MOVB	(R3), R0
 	MOVB	R0, @#LDC89	; set the current item
-	CALL	LBD69		; Set penRow/penCol = $580A
-	MOV	#SE133, R3	; "The Workstation has now successfully booted up"
-	CALL	LBEDE		; Show message char-by-char
+	CALL	DRSTR3		; Draw string with LBEDE and params after the call
+	.WORD	54012		; penRow/penCol
+	.WORD	SE133		; "The Workstation has now successfully booted up"
 	CALL	SHOWSC		; Copy shadow screen to UKNC screen
 	CALL	LAB28		; Show small message popup
 LBD2B:
@@ -2853,35 +2860,27 @@ LBD2B:
 	MOVB	#001, @#<LDB90+2>	; mark Workstation is used
 	MOVB	@#LDC89, R0	; get the current item number
 	MOVB	#001, LDB9C(R0)	; mark that we have the item now
-	CALL	LBD69		; Set penRow/penCol = $580A
 	MOV	#SE135, R3	; "The Workstation Ejected A Data Cartridge 2"
-	JMP	LBCC5		; Show the message/screen, wait for key, continue game main loop
+	BR	LBCC5		; Show the message/screen, wait for key, continue game main loop
 ; RoomDesc[$13] == $04 - Life-Support System
 LBD4E:
-	CALL	LBD69		; Set penRow/penCol = $580A
 	MOV	#SE13F, R3	; "The Life Support System needs Re-Configuring"
-	JMP	LBCC5		; Show the message/screen, wait for key, continue game main loop
+	BR	LBCC5		; Show the message/screen, wait for key, continue game main loop
 ; RoomDesc[$13] == $05 - Evacuation Deck re-pressurised
 LBD57:
-	CALL	LBD69		; Set penRow/penCol = $580A
 	MOV	#SE141, R3	; "AirLock Control & Re-Pressurisation Station"
-	JMP	LBCC5		; Show the message/screen, wait for key, continue game main loop
+	BR	LBCC5		; Show the message/screen, wait for key, continue game main loop
 ; RoomDesc[$13] == $06 - Guidance System
 LBD60:
-	CALL	LBD69		; Set penRow/penCol = $580A
 	MOV	#SE143, R3	; "This MainFrame is missing a Power Cell"
-	JMP	LBCC5		; Show the message/screen, wait for key, continue game main loop
-; Set penRow/penCol = $580A
-LBD69:
-	MOV	#54012, @#L86D7	; Set penRow/penCol
-	RETURN
+	BR	LBCC5		; Show the message/screen, wait for key, continue game main loop
+;NOTE: Procedure LBD69 removed, not used anymore
 ; RoomDesc[$13] == $07 - Pod
 LBD70:
 	MOVB	@#<LDB90+6>, R0	; does Guidance System working now
-	BEQ	LBD85		; yes => Flying away on the Pod
-	CALL	LBD69		; Set penRow/penCol = $580A
+	BNE	LBD85		; yes => Flying away on the Pod
 	MOV	#SE145, R3	; "This Pod cant naviagate. Guidance System is offline"
-	JMP	LBCC5		; Show the message/screen, wait for key, continue game main loop
+	BR	LBCC5		; Show the message/screen, wait for key, continue game main loop
 ; Flying away on the Pod
 LBD85:
 	MOVB	#68., @#LDC59	; set delay factor
@@ -2892,16 +2891,16 @@ LBD85:
 ; Showing end-of-story screen
 	CALL	LBC7D		; Clear and show shadow screen
 ;TODO:	CALL	ScreenThemeNite
-	CALL	LBC84		; ClearPenRowCol
-	MOV	#SE11B, R3	; "The onboard guidance system picks up a ...
-	CALL	LBEDE		; Show message char-by-char
+	CALL	DRSTR3		; Draw string with LBEDE and params after the call
+	.WORD	000000		; zero penRow/penCol
+	.WORD	SE11B		; "The onboard guidance system picks up a ...
 	CALL	WTKEY		; WaitAnyKey
 ; Showing statistics screen
 	MOVB	#006, @#LDCF3	; Left margin size for text
 	CALL	CLSHAD		; ClearShadowScreen
-	MOV	#6014, @#L86D7	; Set penRow/penCol
-	MOV	#SE0A1, R3	; "Items Found (/24): Enemies Killed: PlayerDeaths: Awards:
-	CALL	LBEDE		; Show message char-by-char
+	CALL	DRSTR3		; Draw string with LBEDE and params after the call
+	.WORD	6014		; penRow/penCol
+	.WORD	SE0A1		; "Items Found (/24): Enemies Killed: PlayerDeaths: Awards:
 	CALL	LBC34		; Delay x20
 	MOV	#3212., R2
 	MOVB	@#LDBC7, R3	; get Items Found count
@@ -2917,41 +2916,41 @@ LBD85:
 	CALL	LBC34		; Delay x20
 	CMPB	#20., @#LDBC7	; 20 or more?
 	BHIS	LBE06		; no => jump
-	MOV	#51014, @#L86D7	; Set penRow/penCol
-	MOV	#SE0AD, R3	; "Sherlock Holmes" (achievement)
-	CALL	LBEDE		; Show message char-by-char
+	CALL	DRSTR3		; Draw string with LBEDE and params after the call
+	.WORD	51014		; penRow/penCol
+	.WORD	SE0AD		; "Sherlock Holmes" (achievement)
 	INCB	@#LDBF4		; increase counter of achievements
 	BR	LBE12
 LBE06:
-	MOV	#51014, @#L86D7	; Set penRow/penCol
-	MOV	#SE0AB, R3	; "Sir Miss-A-Lot" (achievement)
-	CALL	LBEDE		; Show message char-by-char
+	CALL	DRSTR3		; Draw string with LBEDE and params after the call
+	.WORD	51014		; penRow/penCol
+	.WORD	SE0AB		; "Sir Miss-A-Lot" (achievement)
 LBE12:
 	MOV	#50., R2
 	MOV	@#LDBC5, R3	; get Enemies Killed count
 	CMP	R2, R3		; Compare HL and DE
 	BHIS	LBE32		; less 50? => jump
-	MOV	#60014, @#L86D7	; Set penRow/penCol
-	MOV	#SE0B1, R3	; "Terminator" (achievement)
-	CALL	LBEDE		; Show message char-by-char
+	CALL	DRSTR3		; Draw string with LBEDE and params after the call
+	.WORD	60014		; penRow/penCol
+	.WORD	SE0B1		; "Terminator" (achievement)
 	INCB	@#LDBF4		; increase counter of achievements
 	BR	LBE3E
 LBE32:
-	MOV	#60014, @#L86D7	; Set penRow/penCol
-	MOV	#SE0AF, R3	; "Running Scared"
-	CALL	LBEDE		; Show message char-by-char
+	CALL	DRSTR3		; Draw string with LBEDE and params after the call
+	.WORD	60014		; penRow/penCol
+	.WORD	SE0AF		; "Running Scared"
 LBE3E:
 	TST	@#LDBC3		; Player deaths count = 0?
 	BNE	LBE5E
-	MOV	#67014, @#L86D7	; Set penRow/penCol
-	MOV	#SE0B5, R3	; "Survivor" (achievement)
-	CALL	LBEDE		; Show message char-by-char
+	CALL	DRSTR3		; Draw string with LBEDE and params after the call
+	.WORD	67014		; penRow/penCol
+	.WORD	SE0B5		; "Survivor" (achievement)
 	INCB	@#LDBF4		; increase counter of achievements
 	BR	LBE6A
 LBE5E:				; Player deaths > 0
-	MOV	#67014, @#L86D7	; Set penRow/penCol
-	MOV	#SE0B3, R3	; "Over & Over Again" (achievement)
-	CALL	LBEDE		; Show message char-by-char
+	CALL	DRSTR3		; Draw string with LBEDE and params after the call
+	.WORD	67014		; penRow/penCol
+	.WORD	SE0B3		; "Over & Over Again" (achievement)
 LBE6A:
 	CALL	WTKEY		; WaitAnyKey
 	CALL	CLSHAD		; ClearShadowScreen
@@ -2959,25 +2958,36 @@ LBE6A:
 	BNE	LBE8A		; no => skip extended ending
 ; Extended ending
 	CLRB	@#LDCF3		; clear Left margin size for text
-	CALL	LBC84		; ClearPenRowCol
-	MOV	#SE11D, R3	; "System Alert triggered: ..."
-	CALL	LBEDE		; Show message char-by-char
+	CALL	DRSTR3		; Draw string with LBEDE and params after the call
+	.WORD	000000		; zero penRow/penCol
+	.WORD	SE11D		; "System Alert triggered: ..."
 	BR	LBE9B
 LBE8A:
 	MOVB	#30., @#LDCF3	; Left margin size for text
-	MOV	#32024, @#L86D7	; Set penRow/penCol
-	MOV	#SE0A9, R3	; "Earn 3 Good Awards for an Extended Ending!"
-	CALL	LBEDE		; Show message char-by-char
+	CALL	DRSTR3		; Draw string with LBEDE and params after the call
+	.WORD	32024		; penRow/penCol
+	.WORD	SE0A9		; "Earn 3 Good Awards for an Extended Ending!"
 LBE9B:
 	CALL	WTKEY		; WaitAnyKey
 	CALL	CLSHAD		; ClearShadowScreen
-	MOV	#32024, @#L86D7	; Set penRow/penCol
-	MOV	#SE11F, R3	; "The End"
-	CALL	LBEDE		; Show message char-by-char
+	CALL	DRSTR3		; Draw string with LBEDE and params after the call
+	.WORD	27106		; penRow/penCol
+	.WORD	SE11F		; "The End"
 	CALL	LBC34		; Delay x20
 	JMP	LBF6F		; The End
+
+; Draw string using LBEDE, with two params are after the CALL
+; param 1: penRow/penCol
+; param 2: string address
+DRSTR3:
+	POP	R3		; R3 = the address right after the CALL
+	MOV	(R3)+, @#L86D7	; Set penRow/penCol
+	MOV	(R3)+, R0	; get the string address
+	PUSH	R3		; new return address
+	MOV	R0, R3
+;	JMP	LBEDE		; Show message char-by-char
 ;
-; Draw string on the screen
+; Draw string on the screen char-by-char
 ;   R3 = String address
 LBEDE:
 	MOVB	(R3)+, R0
@@ -3025,9 +3035,9 @@ LBF6F:
 	CALL	LBC7D		; Clear and show shadow screen
 ;TODO:	CALL	ScreenThemeNite	; switching to dark theme for End and Credits
 	CALL	LBF54		; Set variables for Credits
-	MOV	#027106, @#L86D7	; Set penRow/penCol
-	MOV	#SE11F, R3	; "The End"
-	CALL	LBEDE		; Show message char-by-char
+	CALL	DRSTR3		; Draw string with LBEDE and params after the call
+	.WORD	027106		; penRow/penCol
+	.WORD	SE11F		; "The End"
 ;
 ; Credits screen text scrolls up
 ;
@@ -3036,7 +3046,7 @@ LBF81:
 LBF686:
 	BR	LBF6F4
 LBF6F2:
-	CALL	SHOWSC		; Copy shadow screen to ZX screen
+	CALL	SHOWSC		; Copy shadow screen to UKNC screen
 LBF6F3:
 	CALL	GETKEY		; Scan keyboard
 	BNE	CREXIT		; any key pressed => Return to main Menu

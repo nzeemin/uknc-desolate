@@ -10,6 +10,15 @@
 
 
 ;------------------------------------------------------------------------------
+; Cheat codes on/off
+
+CHROMN=0		; Show room number at the bottom-left
+CHACCE=0		; All door access codes entered already
+CHAINV=0		; Have all inventory items
+CHWEAP=0		; Have the weapon
+CHELTH=0		; Health 999
+
+;------------------------------------------------------------------------------
 
 SCRTOP=115110		; Начало экрана, косвенный адрес для УКНЦ
 
@@ -44,26 +53,43 @@ START::
 ; Запуск
 	CALL	LBA07			; Show titles and go to Menu
 
+.IF NE CHACCE			; Cheat code to get all door access codes
+	MOV	#LDCA2, R3
+	MOV	#72., R1
+START1:	MOVB	#001, (R3)+
+	SOB	R1, START1
+.ENDC
+.IF NE CHAINV			; Cheat code to have all inventory items
+	MOV	#LDB9C, R3
+	MOV	#26., R1
+START2:	MOVB	#001, (R3)+
+	SOB	R1, START2
+.ENDC
+.IF NE CHWEAP			; Cheat code to have the weapon
+	MOVB	#001, @#LDCF7
+.ENDC
+.IF NE CHELTH			; Cheat code to have health 999
+	MOV	#999., @#LDB7A
+.ENDC
+
 ;	CALL	LB0A2		; Inventory
 ;	CALL	LBBEC		; Info menu item, show Controls
 ;	CALL	LBADE		; New game
 ;	CALL	LBB7E		; Game start
+;	CALL	LB9A2		; Player is dead
 ;	CALL	LBD85		; Final
 ;	CALL	LBF6F		; The End
 ;	CALL	LBF81		; Credits
-;	CALL	LAB28		; Small message popup
 
-;	MOV	#<TILES3+64.>, R4
-;	MOVB	#0, R3		; get Y pos
-;	MOVB	#1, R2		; get X pos
-;	MOV	#16., R1
-;	CALL	L9E5F		; Draw tile by XOR operation
+;	MOV	#1536., R1
+;	MOV	#SHADOW, R4
+;STARTO:	CALL	RANDOM
+;	MOV	R3, (R4)+
+;	SOB	R1, STARTO
 
-	CALL	SHOWSC
+;	CALL	SHOWSC
 
-;	HALT
-
-	CALL	WTKEY
+;	CALL	WTKEY
 
 FINISH:
 	MOV	#EXITSC, R1	; Строка очистки экрана перед выходом
@@ -446,7 +472,7 @@ RANDOM:
 	INC	R3		; A288	INC HL
 LA289:	MOV	R3, RANDSD	; A289	LD ($5C76),HL	; Write RND SEED variable
 	RETURN			; A28C	RET
-RANDSD:	.WORD	123456	; Pseudo-random seed
+RANDSD:	.WORD	123456		; Pseudo-random seed
 ;
 ; Get random number 0..7
 RAND8:
@@ -461,8 +487,10 @@ RAND11:
 	CALL	RANDOM
 	MOV	R3, R0
 	BIC	#177740, R0
-;TODO
-	RETURN
+RAND1A:	CMP	#11., R0
+	BLO	RAND1R
+	SUB	#11., R0
+RAND1R:	RETURN
 
 ;------------------------------------------------------------------------------
 
