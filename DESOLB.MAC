@@ -978,9 +978,9 @@ LAE3D:
 	CALL	LB09B		; Preparing to draw string with the prompt
 	MOV	#SE0DD, R3	; "Door Locked"
 	CALL	LBEDE		; Show message char-by-char
-	CALL	DRSTR3		; Draw string with LBEDE and params after the call
-	.WORD	42012		; penRow/penCol
-	.WORD	LAFFE		; Get "Access code level N required" string by access level in DC8C
+	MOV	#42012, @#L86D7	; set penRow/penCol
+	CALL	LAFFE		; Get "Access code level N required" string by access level in DC8C
+	CALL	LBEDE		; Show message char-by-char
 	MOVB	#37., @#LDC82	; set current item number - "Enter" sign
 	MOVB	#160., @#LDC83	; set X pos
 	MOVB	#96., @#LDC84	; set Y pos
@@ -1821,7 +1821,7 @@ LB4AF:
 ; Box of Power Cells selected in the Inventory
 LB4C4:
 	CALL	LB3DA
-	BNE	LB4C41
+	BEQ	LB4C41
 	JMP	LB3E8
 LB4C41:	CALL	LB538		; Get value at $13 offset in the room description
 	CMP	R0, #006
@@ -2718,19 +2718,22 @@ LBBDC:
 ; Info menu item, show Controls
 ;
 LBBEC:
-	MOV	#LF329, R3	; Decode from - Encoded screen for Inventory/Info popup
-	CALL	LADEE		; Decode 96 bytes of the screen to LDBF5
-	CALL	LB177		; Display screen HL from tiles with Tileset 2
+	CALL	CLSHAD
+;TODO:	CALL	ScreenThemeNite
 	MOVB	#10., @#LDCF3	; Left margin size for text
 	MOVB	#14., @#LDCF4	; Line interval for text
-	MOV	#013074, @#L86D7  ; Set penRow/penCol
-	MOV	#SE0A5, R3	; "- Controls -"
-	CALL	DRSTR		; Show message char-by-char
+	CALL	DRSTR3		; Show message char-by-char
+	.WORD	002074		; Set penRow/penCol
+	.WORD	SE0A5		; "- Controls -"
 	CALL	DRSTR3		; Draw string with LBEDE and params after the call
-	.WORD	022012		; penRow/penCol
+	.WORD	012012		; penRow/penCol
 	.WORD	SE0A7		; "2nd = Look / Shoot Alpha = Inventory ..."
+	CALL	DRSTR3		; Draw string with LBEDE and params after the call
+	.WORD	073046		; penRow/penCol
+	.WORD	SVERS		; Version info
 	CALL	SHOWSC		; Copy shadow screen to UKNC screen
 	CALL	LADA1		; Wait for Escape key
+;TODO:	CALL	ScreenThemeLite	; switching to light theme for Main Menu
 	JMP	LBA3D		; Return to Menu
 ;
 ; Delay x40
@@ -2777,6 +2780,7 @@ LBC6D:
 	POP	R3
 	MOVB	R0, (R3)+
 	POP	R1
+	SOB	R1, LBC6D
 	RETURN
 ;
 ; Clear shadow screen and copy to UKNC screen

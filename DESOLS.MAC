@@ -1,3 +1,6 @@
+SVERS:
+.INCLUDE /VERSIO.MAC/
+;
 ; Credits
 SE02B: .ASCIZ "Code, GFX, Story etc"
 SE02D: .ASCIZ "Patrick Prendergast"

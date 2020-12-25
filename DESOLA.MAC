@@ -54,8 +54,8 @@ START::
 	CALL	LBA07			; Show titles and go to Menu
 
 .IF NE CHACCE			; Cheat code to get all door access codes
-	MOV	#LDCA2, R3
-	MOV	#72., R1
+	MOV	#<DLLENT+1>, R3
+	MOV	#4., R1
 START1:	MOVB	#001, (R3)+
 	SOB	R1, START1
 .ENDC
@@ -72,6 +72,7 @@ START2:	MOVB	#001, (R3)+
 	MOV	#999., @#LDB7A
 .ENDC
 
+;	CALL	LBA3D		; Menu
 ;	CALL	LB0A2		; Inventory
 ;	CALL	LBBEC		; Info menu item, show Controls
 ;	CALL	LBADE		; New game
@@ -479,7 +480,7 @@ RAND8:
 	CALL	RANDOM
 	MOV	R3, R0
 	BIC	#177770, R0
-	RETURN
+RAND8R:	RETURN
 ;
 ; Get random number 0..10 for door access codes
 ; value 10 is for '-' char and we made its probability lower by 1/3
@@ -487,10 +488,10 @@ RAND11:
 	CALL	RANDOM
 	MOV	R3, R0
 	BIC	#177740, R0
-RAND1A:	CMP	#11., R0
-	BLO	RAND1R
+RAND1A:	CMP	R0, #11.
+	BLO	RAND8R
 	SUB	#11., R0
-RAND1R:	RETURN
+	BR	RAND1A
 
 ;------------------------------------------------------------------------------
 
