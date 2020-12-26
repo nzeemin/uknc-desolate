@@ -673,11 +673,11 @@ LDB84:  .BYTE 2		; Alien 001 = alive, 0 = dead
 LDB85:  .BYTE 3		; Alien health: 003, then DEC to 0
 LDB86:  .BYTE 0		; Alien direction/orientation: 0 down, 001 up, 002 left, 003 right
 LDB87:  .BYTE 0		; Alien position within the room, calculated in LB6ED
-LDB88:  .BYTE 0		; Bullet X coord in tiles
+LDB88:  .BYTE 0		; Bullet X coord in tiles 0..11
 LDB89:  .BYTE 0		; Bullet Y coord/line on the screen
 LDB8A:  .BYTE 0		; Bullet Y coord in tiles
 LDB8B:  .BYTE 0		; Bullet Direction/orientation: 0 down, 001 up, 002 left, 003 right
-LDB8C:  .BYTE 0		; shooting flag ??
+LDB8C:  .BYTE 0		; 001 = we have bullet flying
 LDB8D:  .BYTE 0		; 001 = shooting in process, bullet in the air
 ;  .BYTE 00
 LDB8F:  .BYTE 072	; Menu Y pos: $3A $46 $52 $5E $6A
