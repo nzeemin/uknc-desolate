@@ -64,14 +64,14 @@ L9E2E:
 ; Quit menu item selected
 L9E51:
 	CALL	LBC7D		; Clear shadow screen and copy on UKNC screen
-;TODO:	CALL	ScreenThemeNite
+	CALL	STHEMN		; ScreenThemeNite
 	CALL	DRSTR3
 	.WORD	30024		; penRow/penCol
 	.WORD	SQUIT
 	CALL	SHOWSC
 	CALL	WTKEY
 	CALL	LBC7D		; Clear and show shadow screen
-;TODO:	CALL	ScreenThemeLite
+	CALL	STHEML		; ScreenThemeLite
 	JMP	LBA3D		; Return to Menu
 ;
 ; Put tile on the screen (NOT aligned to 8px column), 16x16 -> 16x16 on shadow screen
@@ -2515,7 +2515,7 @@ LBA07:
 	CALL	LBC7D		; Clear shadow screen and copy to UKNC screen
 	CALL	LBC34		; Delay x20
 	CLRB	@#LDC85		; Skip delay and copy screen in LBEDE
-;TODO:	CALL	ScreenThemeLite	; switching to the light theme on Main Menu
+	CALL	STHEML		; ScreenThemeLite - switching to the light theme on Main Menu
 	BR	LBA3D		; Return to Menu
 ;
 ; MenuFromGame:
@@ -2635,7 +2635,7 @@ LBADE5:	CLRB	(R3)+		; Clear 4 flags
 	MOV	#LDC9E, R3	; level 4 access code buffer
 	CALL	LBC6B		; Generate random code
 	CALL	LBC7D		; Clear shadow screen and copy to UKNC screen
-;TODO:	CALL	ScreenThemeNite	; switching to dark theme for story mode
+	CALL	STHEMN		; ScreenThemeNite - switching to dark theme for story mode
 	MOVB	#68., @#LDC59	; set delay factor
 	MOVB	#1, @#LDC85	; Use delay and copy screen in LBEDE
 	MOVB	#14., @#LDCF4	; set Line interval for text
@@ -2666,7 +2666,7 @@ LBB7E:
 ; Continue menu item selected
 LBB82:
 	CALL	LBC7D		; Clear shadow screen and copy to UKNC screen
-;TODO:	CALL	ScreenThemeLite	; switching to light theme opening the game screen
+	CALL	STHEML		; ScreenThemeLite - switching to light theme opening the game screen
 	MOVB	#001, @#LDB73
 	MOVB	#377, @#LDC59	; set delay factor
 	CALL	LB2D0		; Delay
@@ -2718,8 +2718,8 @@ LBBDC:
 ; Info menu item, show Controls
 ;
 LBBEC:
-	CALL	CLSHAD
-;TODO:	CALL	ScreenThemeNite
+	CALL	LBC7D		; Clear and show shadow screen
+	CALL	STHEMN		; ScreenThemeNite
 	MOVB	#10., @#LDCF3	; Left margin size for text
 	MOVB	#14., @#LDCF4	; Line interval for text
 	CALL	DRSTR3		; Show message char-by-char
@@ -2733,7 +2733,8 @@ LBBEC:
 	.WORD	SVERS		; Version info
 	CALL	SHOWSC		; Copy shadow screen to UKNC screen
 	CALL	LADA1		; Wait for Escape key
-;TODO:	CALL	ScreenThemeLite	; switching to light theme for Main Menu
+	CALL	LBC7D		; Clear and show shadow screen
+	CALL	STHEML		; ScreenThemeLite - switching to light theme for Main Menu
 	JMP	LBA3D		; Return to Menu
 ;
 ; Delay x40
@@ -2894,7 +2895,7 @@ LBD85:
 	MOVB	#14., @#LDCF4	; Line interval for text
 ; Showing end-of-story screen
 	CALL	LBC7D		; Clear and show shadow screen
-;TODO:	CALL	ScreenThemeNite
+	CALL	STHEMN		; ScreenThemeNite
 	CALL	DRSTR3		; Draw string with LBEDE and params after the call
 	.WORD	000000		; zero penRow/penCol
 	.WORD	SE11B		; "The onboard guidance system picks up a ...
@@ -3029,7 +3030,7 @@ LBF54:
 ; Credits menu item selected
 LBF64:
 	CALL	LBC7D		; Clear and show shadow screen
-;TODO:	CALL	ScreenThemeNite	; switching to dark theme for Credits
+	CALL	STHEMN		; ScreenThemeNite - switching to dark theme for Credits
 	CALL	LBF54		; Set variables for Credits
 	JMP	LBF81		; Credits screen text scrolls up
 ;
@@ -3037,7 +3038,7 @@ LBF64:
 ;
 LBF6F:
 	CALL	LBC7D		; Clear and show shadow screen
-;TODO:	CALL	ScreenThemeNite	; switching to dark theme for End and Credits
+	CALL	STHEMN		; ScreenThemeNite - switching to dark theme for End and Credits
 	CALL	LBF54		; Set variables for Credits
 	CALL	DRSTR3		; Draw string with LBEDE and params after the call
 	.WORD	027106		; penRow/penCol
@@ -3080,7 +3081,7 @@ CREDS5:
 	CALL	LBA81		; Delay x40 - added to have a pause after the last line
 CREXIT:
 	CALL	LBC7D		; Clear and show shadow screen
-;TODO:	CALL	ScreenThemeLite	; switching to light theme for Main Menu
+	CALL	STHEML		; ScreenThemeLite - switching to light theme for Main Menu
 	JMP	LBA3D		; Return to main Menu
 ;
 ; Scroll shadow screen up 1px
