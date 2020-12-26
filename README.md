@@ -8,6 +8,7 @@ Porting status: work in progress.
 
 The main challenge here is to convert ~4K lines of Z80 assembly code to PDP-11 MACRO assembler, in other words, to convert all the code to very different processor. Plus the usual stuff like different video and input.
 
+![](screenshot/port-story1.png)
 ![](screenshot/port-room1.png)
 
 
