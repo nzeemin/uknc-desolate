@@ -71,8 +71,9 @@ L9E51:
 	CALL	SHOWSC
 	CALL	WTKEY
 	CALL	LBC7D		; Clear and show shadow screen
-	CALL	STHEML		; ScreenThemeLite
-	JMP	LBA3D		; Return to Menu
+;	CALL	STHEML		; ScreenThemeLite
+;	JMP	LBA3D		; Return to Menu
+	JMP	FINISH
 ;
 ; Put tile on the screen (NOT aligned to 8px column), 16x16 -> 16x16 on shadow screen
 ; Uses XOR operation so it is revertable.

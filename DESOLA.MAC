@@ -31,7 +31,7 @@ START::
 
 	MOV	#GAMESC, R1	; Строка для подготовки игрового экрана
 	CALL	PRINT
-	MOV	#13., R2
+	MOV	#15., R2
 STARTA:	MOV	#GAMES1, R1	; Строка для условной инверсии игровой части экрана
 	CALL	PRINT
 	SOB	R2, STARTA
@@ -88,6 +88,7 @@ START2:	MOVB	#001, (R3)+
 ;	CALL	WTKEY
 
 FINISH:
+	CALL	STHEMD		; Вернуть стандартную палитру
 	MOV	#EXITSC, R1	; Строка очистки экрана перед выходом
 	CALL	PRINT
 	.EXIT
@@ -99,10 +100,10 @@ GAMESC:	; Строка подготовки игрового экрана
 	.BYTE	033,242,60	; Цвет фона 0
 	.BYTE	14		; Clear screen
 	.BYTE	033,243		; режим инверсии
-	.BYTE	033,131,47,40	; Курсор в позицию
+	.BYTE	033,131,46,40	; Курсор в позицию
 	.BYTE	0
 ; Строка для подсветки игровой области
-GAMES1:	.ASCIZ	<031><031><031><031><031><031><031>/                          /<015><012>
+GAMES1:	.ASCIZ	<031><031><031><031><031><031>/                            /<015><012>
 GAMES2:	.BYTE	033,277,243	; отмена инверсии
 	.BYTE	033,131,66,40	; Курсор в позицию
 	.BYTE	0
@@ -124,6 +125,7 @@ PALETN:	.WORD	^B1101110000000000	; игр.экр.1, ???, игр.экр.0, общий фон
 PALETL:	.WORD	^B0000110011110000	; игр.экр.1, ???, игр.экр.0, общий фон
 	.WORD	^B0000100010100111	; ???, ???, ???, заголовок
 ;		  ====----====----
+PALETD:	.WORD	135230, 177334		; Палитра УКНЦ по умолчанию
 
 ; ScreenThemeNite - switching to dark theme for story mode
 STHEMN:
@@ -132,6 +134,10 @@ STHEMN:
 ; ScreenThemeLite - switching to light theme
 STHEML:
 	MOV	#PALETL, @#PPBACP
+	BR	PPSEND
+; Вернуть стандартную палитру
+STHEMD:
+	MOV	#PALETD, @#PPBACP
 	BR	PPSEND
 
 ; Массив параметров для обмена с ПП по каналу 2
@@ -408,7 +414,7 @@ DRCHRO:	.BYTE	0		; DrawChar_row:     DB 0    ; Saved current row number
 ; Copy DEDSOLATE title from Main Menu shadow screen to UKNC screen
 CTITLE:
 	MOV	#<SHADOW+192.>, R2
-	MOV	#104310, R4		; Адрес в ВОЗУ УКНЦ
+	MOV	#103610, R4		; Адрес в ВОЗУ УКНЦ
 	MOV	#30., R3		; количество строк
 CTITL1:	MOV	#24., R5		; 24. колонки в строке
 	MOV	#176640, R1		; Адрес порта адреса косвенной записи УКНЦ
