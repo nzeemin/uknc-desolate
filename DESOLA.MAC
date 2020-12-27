@@ -77,12 +77,6 @@ START2:	MOVB	#001, (R3)+
 ;	CALL	LBF6F		; The End
 ;	CALL	LBF81		; Credits
 
-;	MOV	#1536., R1
-;	MOV	#SHADOW, R4
-;STARTO:	CALL	RANDOM
-;	MOV	R3, (R4)+
-;	SOB	R1, STARTO
-
 ;	CALL	SHOWSC
 
 ;	CALL	WTKEY
@@ -320,17 +314,18 @@ DRCHR2:	SUB	#054, R0	;   sub $2C       ; font starts from ','
 	ADD	R2, R2		;   add hl,hl     ; now hl = a * 10
 	ADD	R0, R2		;   add hl,de     ; now hl = a * 11
 	ADD	#FONTPR, R2	;   ld de,FontProto / add hl,de / ex de,hl      ; now de=symbol addr
-	MOVB	@#L86D8, R0	;   ld a,(L86D8)  ; get penRow
-	MOVB	R0, @#DRCHRO	;   ld (DrawChar_row),a
+	CLR	R0		;NOTE: Номер строки может быть больше 127!
+	BISB	@#L86D8, R0	;   ld a,(L86D8)  ; get penRow
+	MOV	R0, @#DRCHRO	;   ld (DrawChar_row),a
 	MOVB	(R2)+, R0	;   ld a,(de) / inc de     ; get flag/width byte
 	BIT	#200, R0	;   bit 7,a       ; lowered symbol?
 	BEQ	DRCHR3		;   jr z,DrawChar_3
-	INCB	@#DRCHRO	;   ld hl,DrawChar_row / inc (hl)      ; start on the next line
+	INC	@#DRCHRO	;   ld hl,DrawChar_row / inc (hl)      ; start on the next line
 DRCHR3:				; DrawChar_3:
 	BIC	#177760, R0	;   and $0f       ; keep width 1..8
 	ADD	#002, R0	;   add a,$02     ; gap 2px after the symbol
 	MOVB	R0, @#DRCHRW	;   ld (DrawChar_width),a
-	MOVB	@#DRCHRO, R0	;   ld a,(DrawChar_row)
+	MOV	@#DRCHRO, R0	;   ld a,(DrawChar_row)
 	CALL	GSADDR		;   call GetScreenAddr
 	PUSH	R3		;   push hl       ; store addr on the screen
 	PUSH	R2		;   push de       ; store symbol data addr
@@ -349,9 +344,9 @@ DRCHR5:				; DrawChar_5:     ; loop for shift
 	BR	DRCHR5		;   jr DrawChar_5
 DRCHR6:				; DrawChar_6:
 	BISB	R0, (R3)	;   or (hl) / ld (hl),a     ; put on the screen
-	MOVB	@#DRCHRO, R0	;   ld a,(DrawChar_row)
+	MOV	@#DRCHRO, R0	;   ld a,(DrawChar_row)
 	INC	R0		;   inc a
-	MOVB	R0, @#DRCHRO	;   ld (DrawChar_row),a
+	MOV	R0, @#DRCHRO	;   ld (DrawChar_row),a
 	CALL	GSADDR		;   call GetScreenAddr
 	POP	R1		;   pop bc        ; restore counter and shift
 	POP	R4
@@ -373,9 +368,9 @@ DRCHR6:				; DrawChar_6:
 	INC	R0		;   inc a
 	INC	R0
 	MOV	R0, R4		;   ld c,a
-	MOVB	@#DRCHRO, R0	;   ld a,(DrawChar_row)
+	MOV	@#DRCHRO, R0	;   ld a,(DrawChar_row)
 	SUB	#10., R0	;   add a,-10
-	MOVB	R0, @#DRCHRO	;   ld (DrawChar_row),a
+	MOV	R0, @#DRCHRO	;   ld (DrawChar_row),a
 	INC	R3		;   inc hl
 	MOV	#10.,R1		;   ld b,10       ; 10 lines
 DRCHR8:	PUSH	R4		; DrawChar_8:     ; loop by lines
@@ -389,9 +384,9 @@ DRCHR9:				; DrawChar_9:     ; loop for shift
 	BR	DRCHR9		;   jr DrawChar_9
 DRCHRA:				; DrawChar_A:
 	BISB	R0, (R3)	;   or (hl) / ld (hl),a     ; put on the screen
-	MOVB	@#DRCHRO, R0	;   ld a,(DrawChar_row)
+	MOV	@#DRCHRO, R0	;   ld a,(DrawChar_row)
 	INC	R0		;   inc a
-	MOVB	R0, @#DRCHRO	;   ld (DrawChar_row),a
+	MOV	R0, @#DRCHRO	;   ld (DrawChar_row),a
 	CALL	GSADDR		;   call GetScreenAddr
 	INC	R3		;   inc hl
 	POP	R1		;   pop bc        ; restore counter
@@ -407,8 +402,8 @@ DRCHRF:				; DrawChar_fin:   ; All done, finalizing
 	POP	R1		;   pop bc
 	POP	R3		;   pop hl
 	RETURN			;   ret
+DRCHRO:	.WORD	0		; DrawChar_row:     DB 0    ; Saved current row number
 DRCHRW:	.BYTE	0		; DrawChar_width:   DB 0    ; Saved symbol width
-DRCHRO:	.BYTE	0		; DrawChar_row:     DB 0    ; Saved current row number
 	.EVEN
 
 ; Copy DEDSOLATE title from Main Menu shadow screen to UKNC screen
