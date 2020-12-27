@@ -4,13 +4,19 @@ Porting **Desolate** game from TI-83 Plus calculator to soviet computer [UKNC](h
 Thanks a lot to tr1p1ea for the original game!
 Thanks to [zx-pk.ru forum](https://zx-pk.ru/forum.php) members for all the help and support!
 
-Porting status: work in progress.
-
-The main challenge here is to convert ~4K lines of Z80 assembly code to PDP-11 MACRO assembler, in other words, to convert all the code to very different processor. Plus the usual stuff like different video and input.
+The main challenge was to convert ~4K lines of Z80 assembly code to PDP-11 MACRO assembler, in other words, to convert all the code to very different processor. Plus the usual stuff like difference in video and input.
+So the work took like 18 days to convert the code and fix all the bugs found.
 
 ![](screenshot/port-story1.png)
 ![](screenshot/port-room1.png)
 
+Controls to use in the game:
+ - Arrows - movement
+ - Space - look/shoot
+ - <kbd>I</kbd> - Inventory
+ - <kbd>Q</kbd> - switch look/shoot mode
+ - <kbd>P</kbd> - return to menu
+ - Other keys (usually I prefer <kbd>Tab</kbd>) - close all pop-ups
 
 ## The original game
 
@@ -38,14 +44,16 @@ To run the game on Wabbitemu emulator:
  - [UKNCBTL utilities](https://github.com/nzeemin/ukncbtl-utils): `rt11dsk` to work with disk images, `sav2cartridge` to prepare UKNC ROM cartridge
  - [pclink11](https://github.com/nzeemin/pclink11): to link object modules just like `LINK` command do, but mostly to test `pclink11`
  - VSCode as the primary code editor
+ - Visual Studio and C# to write some code converting binary data (tiles, sprites, strings, tables), see the code in SpriteRotate folder
 
- Emulators of the machine:
+ Emulators of the machine, to test the result:
   - [UKNCBTL](https://github.com/nzeemin/ukncbtl)
   - [EmuStudio](https://zx-pk.ru/threads/18027-emulyator-uknts-emustudio.html)
 
 
 ## Links
 
+- [Discussion on zx-pk.ru (in Russian)](https://zx-pk.ru/threads/32566-portirovanie-desolate-s-ti-83-plus-na-uknts.html)
  - [Desolate port on ZX Spectrum](https://github.com/nzeemin/spectrum-desolate)
  - [Desolate port on Vector06c](https://github.com/nzeemin/vector06c-desolate)
 
