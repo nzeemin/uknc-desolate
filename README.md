@@ -18,6 +18,9 @@ Controls to use in the game:
  - <kbd>P</kbd> - return to menu
  - Other keys (usually I prefer <kbd>Tab</kbd>) - close all pop-ups
 
+Play the game online using UKNCBTL WASM emulator: https://nzeemin.github.io/ukncbtl-wasm/index.html?state=https://nzeemin.github.io/ukncbtl/desolate.uknc&run=1
+
+
 ## The original game
 
 Written by Patrick Prendergast (tr1p1ea) for TI-83/TI-84 calculators.
