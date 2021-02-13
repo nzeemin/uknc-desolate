@@ -1,5 +1,7 @@
 # uknc-desolate
-Porting **Desolate** game from TI-83 Plus calculator to soviet computer [UKNC](https://en.wikipedia.org/wiki/UKNC) (УКНЦ).
+Ported **Desolate** game from TI-83 Plus calculator to soviet computer [UKNC](https://en.wikipedia.org/wiki/UKNC) (УКНЦ).
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 Thanks a lot to tr1p1ea for the original game!
 Thanks to [zx-pk.ru forum](https://zx-pk.ru/forum.php) members for all the help and support!
@@ -49,14 +51,14 @@ To run the game on Wabbitemu emulator:
  - VSCode as the primary code editor
  - Visual Studio and C# to write some code converting binary data (tiles, sprites, strings, tables), see the code in SpriteRotate folder
 
- Emulators of the machine, to test the result:
-  - [UKNCBTL](https://github.com/nzeemin/ukncbtl)
-  - [EmuStudio](https://zx-pk.ru/threads/18027-emulyator-uknts-emustudio.html)
+Emulators of the machine, to test the result:
+ - [UKNCBTL](https://github.com/nzeemin/ukncbtl)
+ - [EmuStudio](https://zx-pk.ru/threads/18027-emulyator-uknts-emustudio.html)
 
 
 ## Links
 
-- [Discussion on zx-pk.ru (in Russian)](https://zx-pk.ru/threads/32566-portirovanie-desolate-s-ti-83-plus-na-uknts.html)
+ - [Discussion on zx-pk.ru (in Russian)](https://zx-pk.ru/threads/32566-portirovanie-desolate-s-ti-83-plus-na-uknts.html)
  - [Desolate port on ZX Spectrum](https://github.com/nzeemin/spectrum-desolate)
  - [Desolate port on Vector06c](https://github.com/nzeemin/vector06c-desolate)
 
